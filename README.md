@@ -45,6 +45,7 @@ Execution        (Interactive Review)
 
 | Layer | Technology |
 |---|---|
+| **Frontend Framework** | **Next.js 15** (App Router, React 19, Vanilla CSS Design System) |
 | **Runtime & Language** | Node.js (v20+), TypeScript (Strict Mode) |
 | **Server Framework** | Fastify v5 (Ultra-low latency, SSE support) |
 | **Agent Orchestration** | LangGraph.js (10-Node State Machine with conditional routing) |
