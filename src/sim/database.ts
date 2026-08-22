@@ -66,6 +66,11 @@ export async function initDb(): Promise<void> {
     const configSql = fs.readFileSync(configPath, 'utf8');
     await query(configSql);
   }
+
+  const agentPath = path.join(dbDir, '07_agent.sql');
+  if (fs.existsSync(agentPath)) {
+    await query(fs.readFileSync(agentPath, 'utf8'));
+  }
 }
 
 /**
@@ -79,8 +84,15 @@ export async function seedGoldenScenario(): Promise<void> {
  * Reset simulation schema state back to clean baseline using CSV sync.
  */
 export async function resetSimulation(): Promise<void> {
+  const agentPath = path.join(path.resolve(process.cwd(), 'database'), '07_agent.sql');
+  if (fs.existsSync(agentPath)) {
+    await query(fs.readFileSync(agentPath, 'utf8'));
+  }
   const resetSql = `
     TRUNCATE TABLE 
+      simulation.agent_events,
+      simulation.payments,
+      simulation.agent_runs,
       simulation.audit_trail,
       simulation.erp_updates,
       simulation.simulation_events,

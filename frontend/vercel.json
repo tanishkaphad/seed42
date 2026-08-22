@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/sim/:path*",
+      "destination": "https://seed42-api.railway.app/:path*"
+    }
+  ]
+}

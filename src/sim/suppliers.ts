@@ -88,6 +88,52 @@ export async function getSupplierById(supplierId: string): Promise<SupplierRecor
   return res.rows.length > 0 ? res.rows[0] : null;
 }
 
+export async function getSupplierByEmail(email: string): Promise<SupplierRecord | null> {
+  const res = await query(
+    `SELECT supplier_id, supplier_name, email, reliability_score::float, quality_score::float, active, created_at
+     FROM simulation.suppliers WHERE lower(email) = lower($1) LIMIT 1`,
+    [email.trim()]
+  );
+  return res.rows[0] || null;
+}
+
+export async function createSupplier(data: {
+  supplier_name: string;
+  email: string;
+  reliability_score?: number;
+  quality_score?: number;
+}): Promise<SupplierRecord> {
+  const existing = await getSupplierByEmail(data.email);
+  if (existing) {
+    throw new Error(`A contact with email ${data.email} already exists (${existing.supplier_id})`);
+  }
+  const supplierId = `SUP-USR-${Date.now().toString().slice(-6)}`;
+  const res = await query(
+    `INSERT INTO simulation.suppliers (supplier_id, supplier_name, email, reliability_score, quality_score, active)
+     VALUES ($1, $2, $3, $4, $5, TRUE) RETURNING supplier_id, supplier_name, email, reliability_score::float, quality_score::float, active, created_at`,
+    [supplierId, data.supplier_name.trim(), data.email.trim(), data.reliability_score ?? 0.8, data.quality_score ?? 0.8]
+  );
+  return res.rows[0];
+}
+
+export async function updateSupplierContact(
+  supplierId: string,
+  data: { supplier_name?: string; email?: string; active?: boolean }
+): Promise<SupplierRecord | null> {
+  const existing = await getSupplierById(supplierId);
+  if (!existing) return null;
+  const res = await query(
+    `UPDATE simulation.suppliers SET
+      supplier_name = COALESCE($1, supplier_name),
+      email = COALESCE($2, email),
+      active = COALESCE($3, active)
+     WHERE supplier_id = $4
+     RETURNING supplier_id, supplier_name, email, reliability_score::float, quality_score::float, active, created_at`,
+    [data.supplier_name || null, data.email || null, data.active ?? null, supplierId]
+  );
+  return res.rows[0] || null;
+}
+
 export async function getSupplierCapability(supplierId: string, componentId: string): Promise<SupplierCapabilityRecord | null> {
   const sql = `
     SELECT 

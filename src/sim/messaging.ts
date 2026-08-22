@@ -17,21 +17,28 @@ export interface SendMessageParams {
   po_id?: string;
   subject: string;
   body: string;
+  skipSimulatedReply?: boolean;
 }
 
 export interface SupplierMessageResponse {
   outbound: SupplierMessageRecord;
-  inbound: SupplierMessageRecord;
-  classification: 'confirmed' | 'delayed-with-date' | 'vague' | 'contradictory';
+  inbound: SupplierMessageRecord | null;
+  classification: 'confirmed' | 'delayed-with-date' | 'vague' | 'contradictory' | 'none';
 }
 
-import { callGroq, extractJsonFromLlm } from '../llm/groq.js';
+import { deliverLiveEmail } from '../mail/deliver.js';
 
 export async function sendSupplierMessage(params: SendMessageParams): Promise<SupplierMessageResponse> {
   const supplier = await getSupplierById(params.supplier_id);
   if (!supplier) {
     throw new Error(`Supplier ${params.supplier_id} not found`);
   }
+
+  const live = await deliverLiveEmail({
+    intended: supplier.email,
+    subject: params.subject,
+    body: params.body,
+  });
 
   const outboundId = `MSG-OUT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const outboundSql = `
@@ -52,9 +59,19 @@ export async function sendSupplierMessage(params: SendMessageParams): Promise<Su
     params.supplier_id,
     params.po_id || null,
     params.subject,
-    params.body,
+      params.body,
   ]);
-  const outboundMessage = outRes.rows[0];
+  const outboundMessage = { ...outRes.rows[0], message_status: live.status };
+  if (live.status !== 'sent') {
+    await query(`UPDATE simulation.supplier_messages SET message_status = $1 WHERE message_id = $2`, [
+      live.status,
+      outboundId,
+    ]);
+  }
+
+  if (params.skipSimulatedReply || live.delivered) {
+    return { outbound: outboundMessage, inbound: null, classification: 'none' };
+  }
 
   // Generate realistic dynamic supplier response via Groq
   const { inboundBody, inboundSubject, classification } = await generateSupplierResponse(
@@ -169,5 +186,27 @@ export async function getSupplierMessages(
 
   const res = await query(sql, params);
   return res.rows;
+}
+
+export async function recordInboundMessage(data: {
+  supplier_id: string;
+  po_id?: string | null;
+  subject: string;
+  body: string;
+}) {
+  const inboundId = `MSG-IN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const res = await query(
+    `INSERT INTO simulation.supplier_messages (
+      message_id, supplier_id, po_id, direction, subject, body, message_status, sent_at
+    ) VALUES ($1, $2, $3, 'inbound', $4, $5, 'delivered', CURRENT_TIMESTAMP)
+    RETURNING *`,
+    [inboundId, data.supplier_id, data.po_id || null, data.subject, data.body]
+  );
+  return res.rows[0];
+}
+
+export function extractMailbox(from: string): string {
+  const m = from.match(/<([^>]+)>/);
+  return (m ? m[1] : from).trim().toLowerCase();
 }
 

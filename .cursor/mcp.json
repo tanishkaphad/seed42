@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "seed42-operations": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "C:\\AAYUSH\\5_College\\Projects\\seed42\\node_modules\\tsx\\dist\\cli.mjs",
+        "C:\\AAYUSH\\5_College\\Projects\\seed42\\src\\mcp\\index.ts"
+      ],
+      "cwd": "C:\\AAYUSH\\5_College\\Projects\\seed42"
+    }
+  }
+}

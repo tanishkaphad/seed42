@@ -36,7 +36,11 @@ export async function callGroq(
     );
   }
 
-  const model = options.model || env.GROQ_MODEL || process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
+  const requested = options.model || env.GROQ_MODEL || process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+  const model =
+    requested === 'llama-3.3-70b-versatile' || requested === 'llama-3.1-8b-instant'
+      ? 'openai/gpt-oss-120b'
+      : requested;
   const temperature = options.temperature ?? 0.2;
   const maxTokens = options.max_tokens ?? 2048;
 

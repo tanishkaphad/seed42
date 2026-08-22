@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { getInventory, getInventoryByComponent, updateStock } from '../sim/inventory.js';
 import { getPurchaseOrders, getPurchaseOrderById, createPurchaseOrder } from '../sim/purchaseOrders.js';
-import { getSuppliers, getSupplierById } from '../sim/suppliers.js';
+import { getSuppliers, getSupplierById, createSupplier, updateSupplierContact } from '../sim/suppliers.js';
 import { getProductionSchedule } from '../sim/production.js';
 import { sendSupplierMessage, getSupplierMessages } from '../sim/messaging.js';
 import { createRfq, getRfqQuotes, getAllQuotes, getAllRfqs, acceptQuote } from '../sim/rfq.js';
@@ -22,6 +22,13 @@ import { runSync } from '../ingest/sync.js';
 import { getAllConfig, setConfigValue } from '../sim/config.js';
 import { evaluateDisruption, executeRecoveryPlan } from '../sim/recovery.js';
 import { processDisruptionFlow } from '../agent/disruptionController.js';
+import { runShortageCrew, resumeAfterApproval, watchShortages } from '../agent/crew.js';
+import { processInboundEmail } from '../agent/inboxLoop.js';
+import { ingestGmailPush, gmailBoundaryStatus } from '../mail/gmail.js';
+import { subscribeAgentEvents } from '../agent/bus.js';
+import { listAgentRuns, getAgentEvents, getPayments } from '../sim/agentStore.js';
+import { planMailbox } from '../mail/deliver.js';
+import { env } from '../config/env.js';
 
 export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   // 0. Root Landing
@@ -45,6 +52,12 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
         simulation_state: 'GET /simulation/state',
         groq_agent_email_flow: 'POST /agent/process-email',
         groq_agent_evaluate: 'POST /agent/evaluate',
+        shortage_crew: 'POST /agent/run',
+        inbound_email: 'POST /inbound-email or POST /webhooks/inbound-email',
+        gmail_push: 'POST /webhooks/gmail',
+        agent_sse: 'GET /agent/events/stream',
+        add_contact: 'POST /suppliers',
+        agent_runs: 'GET /agent/runs',
         recovery_evaluate: 'POST /recovery/evaluate',
         recovery_execute: 'POST /recovery/execute',
         csv_sync: 'POST /ingest/sync',
@@ -53,23 +66,34 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     };
   });
 
-  // 1. Health
+  // 1. Health + Limit Status
   fastify.get('/health', async (request, reply) => {
     try {
       const state = await getSimulationState();
+      const inventory = await getInventory();
+      const uptime = Math.floor(process.uptime());
+      const memMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
+      // ponytail: lightweight limit signals — no external API calls
+      const limits = {
+        neon_rows: inventory.length,           // Neon free: 0.5 GB storage
+        resend_key_set: Boolean(process.env.RESEND_API_KEY),
+        groq_key_set: Boolean(process.env.GROQ_API_KEY),
+        mem_mb: memMb,
+        mem_warn: memMb > 400,                 // Railway free: 512 MB RAM
+      };
       return {
         status: 'healthy',
+        limits_ok: !limits.mem_warn,
+        uptime_seconds: uptime,
         database: 'Neon PostgreSQL connected',
         simulation_status: state.status,
         simulation_time: state.simulation_time,
+        limits,
         timestamp: new Date().toISOString(),
       };
     } catch (err: any) {
       reply.status(503);
-      return {
-        status: 'unhealthy',
-        error: err.message,
-      };
+      return { status: 'unhealthy', error: err.message };
     }
   });
 
@@ -180,6 +204,52 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     } catch (err: any) {
       reply.status(500);
       return { error: 'Failed to retrieve suppliers', details: err.message };
+    }
+  });
+
+  fastify.post('/suppliers', async (request, reply) => {
+    const bodySchema = z.object({
+      supplier_name: z.string().min(1),
+      email: z.string().email(),
+      reliability_score: z.number().min(0).max(1).optional(),
+      quality_score: z.number().min(0).max(1).optional(),
+    });
+    const parsed = bodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid contact payload', issues: parsed.error.issues };
+    }
+    try {
+      const supplier = await createSupplier(parsed.data);
+      return { status: 'created', supplier };
+    } catch (err: any) {
+      reply.status(400);
+      return { error: err.message };
+    }
+  });
+
+  fastify.patch('/suppliers/:supplier_id', async (request, reply) => {
+    const { supplier_id } = request.params as { supplier_id: string };
+    const bodySchema = z.object({
+      supplier_name: z.string().min(1).optional(),
+      email: z.string().email().optional(),
+      active: z.boolean().optional(),
+    });
+    const parsed = bodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid contact update', issues: parsed.error.issues };
+    }
+    try {
+      const supplier = await updateSupplierContact(supplier_id, parsed.data);
+      if (!supplier) {
+        reply.status(404);
+        return { error: `Supplier ${supplier_id} not found` };
+      }
+      return { status: 'updated', supplier };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: err.message };
     }
   });
 
@@ -346,7 +416,8 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
         reply.status(404);
         return { error: `Approval ${approval_id} not found` };
       }
-      return { status: 'success', approval: updated };
+      const crew = await resumeAfterApproval(approval_id, parsed.data.action);
+      return { status: 'success', approval: updated, crew };
     } catch (err: any) {
       reply.status(500);
       return { error: 'Failed to update approval status', details: err.message };
@@ -691,5 +762,108 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
       reply.status(500);
       return { error: 'Groq autonomous evaluation failed', details: err.message };
     }
+  });
+
+  fastify.get('/agent/mail-status', async () => {
+    const plan = planMailbox('supplier@example.com');
+    return { mailbox: plan, coverage_days: env.AGENT_COVERAGE_DAYS, gmail: gmailBoundaryStatus() };
+  });
+
+  fastify.get('/agent/runs', async (request, reply) => {
+    try {
+      const runs = await listAgentRuns();
+      return { count: runs.length, runs };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to list agent runs', details: err.message };
+    }
+  });
+
+  fastify.get('/agent/runs/:run_id', async (request, reply) => {
+    const { run_id } = request.params as { run_id: string };
+    try {
+      const events = await getAgentEvents(run_id);
+      const payments = await getPayments(run_id);
+      return { run_id, events, payments };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to load agent run', details: err.message };
+    }
+  });
+
+  fastify.get('/agent/payments', async (request, reply) => {
+    try {
+      const payments = await getPayments();
+      return { count: payments.length, payments };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to list payments', details: err.message };
+    }
+  });
+
+  fastify.post('/agent/run', async (request, reply) => {
+    const bodySchema = z.object({
+      component_id: z.string().optional(),
+    });
+    const parsed = bodySchema.safeParse(request.body || {});
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid crew payload', issues: parsed.error.issues };
+    }
+    try {
+      const shortages = await watchShortages();
+      const result = await runShortageCrew(parsed.data.component_id);
+      return { shortages, ...result };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Shortage crew failed', details: err.message };
+    }
+  });
+
+  const ingestInbound = async (request: any, reply: any) => {
+    try {
+      const result = await processInboundEmail(request.body || {});
+      return result;
+    } catch (err: any) {
+      reply.status(400);
+      return { error: err.message };
+    }
+  };
+
+  fastify.post('/inbound-email', ingestInbound);
+  fastify.post('/webhooks/inbound-email', async (request, reply) => {
+    const secret = env.MAIL_WEBHOOK_SECRET;
+    if (secret) {
+      const got = String(request.headers['x-webhook-secret'] || '');
+      if (got !== secret) {
+        reply.status(401);
+        return { error: 'Invalid webhook secret' };
+      }
+    }
+    return ingestInbound(request, reply);
+  });
+
+  fastify.post('/webhooks/gmail', async (request, reply) => {
+    try {
+      return await ingestGmailPush(request.body || {});
+    } catch (err: any) {
+      reply.status(400);
+      return { error: err.message };
+    }
+  });
+
+  fastify.get('/agent/events/stream', async (request, reply) => {
+    reply.hijack();
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+    reply.raw.write(':\n\n');
+    const unsub = subscribeAgentEvents((event) => {
+      reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
+    });
+    request.raw.on('close', unsub);
   });
 };

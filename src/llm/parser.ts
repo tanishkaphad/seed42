@@ -3,7 +3,11 @@ import { callGroq, extractJsonFromLlm } from './groq.js';
 export interface ParsedEmailSignal {
   affected_po_id: string | null;
   component_id: string | null;
+  rfq_id: string | null;
   reported_delay_days: number | null;
+  quoted_unit_price: number | null;
+  stated_delivery_days: number | null;
+  deal_intent: 'confirm' | 'reject' | 'unclear';
   disruption_cause: string;
   classification: 'confirmed' | 'delayed-with-date' | 'vague' | 'contradictory';
   summary: string;
@@ -32,10 +36,25 @@ export async function parseInboundEmailWithGroq(
   fromEmail: string = ''
 ): Promise<ParsedEmailSignal> {
   const text = `${subject} ${emailBody}`;
-  
-  // Extract PO ID (e.g. PO-7712)
+
   const poMatch = text.match(/PO[-_\s]?(\d+)/i);
   const poId = poMatch ? `PO-${poMatch[1]}` : null;
+  const rfqMatch = text.match(/RFQ[-_\s]?(\d+)/i);
+  const rfqId = rfqMatch ? `RFQ-${rfqMatch[1]}` : null;
+
+  const priceMatch =
+    text.match(/(?:₹|inr|rs\.?)\s*([\d,]+(?:\.\d+)?)/i) ||
+    text.match(/unit\s*price[:\s]+([\d,]+(?:\.\d+)?)/i);
+  const quotedUnitPrice = priceMatch ? Number(priceMatch[1].replaceAll(',', '')) : null;
+
+  const deliveryMatch = text.match(/(?:lead\s*time|deliver(?:y|s)?(?:\s+in)?)\s*[:\s]*(\d+)\s*days?/i);
+  const statedDeliveryDays = deliveryMatch ? parseInt(deliveryMatch[1], 10) : null;
+
+  let dealIntent: 'confirm' | 'reject' | 'unclear' = 'unclear';
+  if (/cannot|unable to|reject|decline|no longer/i.test(text)) dealIntent = 'reject';
+  else if (/confirm|agreed|we accept|happy to proceed|order confirmed|we can supply|deal accepted/i.test(text)) {
+    dealIntent = 'confirm';
+  }
 
   // Extract Component ID (e.g. COMP-104)
   const compMatch = text.match(/COMP[-_\s]?(\d+)/i);
@@ -68,7 +87,7 @@ export async function parseInboundEmailWithGroq(
     classification = 'contradictory';
   } else if (delayDays !== null && delayDays > 0) {
     classification = 'delayed-with-date';
-  } else if (/confirm|on schedule|dispatched|shipped|on track|ready for pickup/i.test(text)) {
+  } else if (dealIntent === 'confirm' || /confirm|on schedule|dispatched|shipped|on track|ready for pickup/i.test(text)) {
     classification = 'confirmed';
   }
 
@@ -79,7 +98,11 @@ export async function parseInboundEmailWithGroq(
   return {
     affected_po_id: poId,
     component_id: compId,
+    rfq_id: rfqId,
     reported_delay_days: delayDays,
+    quoted_unit_price: quotedUnitPrice,
+    stated_delivery_days: statedDeliveryDays,
+    deal_intent: dealIntent,
     disruption_cause: cause,
     classification,
     summary,
