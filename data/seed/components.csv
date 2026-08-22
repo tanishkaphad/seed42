@@ -1,0 +1,33 @@
+component_id,name,description,unit_of_measure,criticality,required_certification
+COMP-101,Power Management Unit,Voltage regulator and power distribution IC for ECU,units,critical,Automotive-Grade
+COMP-102,CAN Bus Transceiver,Controller area network interface for vehicle communication,units,critical,IATF-16949
+COMP-103,ADAS Radar Module,Short-range radar sensor for collision avoidance,units,critical,AEC-Q100
+COMP-104,Motor Driver IC,Motor controller component for Smart Controller Unit,units,critical,Automotive-Grade
+COMP-105,Battery Management IC,Cell balancing and protection IC for EV battery pack,units,critical,AEC-Q100
+COMP-106,Electronic Control Unit,Central ECU processor for powertrain management,units,critical,IATF-16949
+COMP-107,Inverter Gate Driver,High-side low-side gate driver for 3-phase inverter,units,critical,Automotive-Grade
+COMP-108,DC-DC Converter IC,Bidirectional DC-DC converter for 48V architecture,units,critical,Automotive-Grade
+COMP-109,H-Bridge Controller,Dual H-bridge motor driver for actuator control,units,high,ISO-9001
+COMP-110,Microcontroller Unit,32-bit ARM Cortex-M4 MCU for embedded control,units,high,IATF-16949
+COMP-111,Torque Sensor IC,Magnetostrictive torque measurement IC,units,high,ISO-9001
+COMP-112,Hall Effect Sensor,Contactless position and speed sensing IC,units,high,ISO-9001
+COMP-113,Gate Driver IC,Single-channel isolated IGBT gate driver,units,high,Automotive-Grade
+COMP-114,MOSFET Array,N-channel power MOSFET array for switching,units,high,ISO-9001
+COMP-115,LiDAR Interface Module,Analog front-end for LiDAR time-of-flight processing,units,high,AEC-Q100
+COMP-116,IMU Sensor,6-axis inertial measurement unit for stability control,units,high,AEC-Q100
+COMP-117,Ethernet Switch IC,Automotive Ethernet switch for in-vehicle networking,units,high,IATF-16949
+COMP-118,Current Sensor IC,Isolated current sensing for battery monitoring,units,high,ISO-9001
+COMP-119,Temperature Sensor NTC,NTC thermistor for thermal management,units,high,ISO-9001
+COMP-120,Flyback Controller IC,PWM flyback controller for auxiliary power supply,units,high,Automotive-Grade
+COMP-121,Capacitor Array 100uF,Electrolytic capacitor bank for power filtering,units,medium,ISO-9001
+COMP-122,Inductor Pack 10uH,Shielded power inductor for DC-DC conversion,units,medium,ISO-9001
+COMP-123,Zener Diode Array,Transient voltage suppressor diode array,units,medium,
+COMP-124,PCB Substrate FR4,4-layer FR4 PCB substrate for main control board,units,medium,ISO-9001
+COMP-125,Thermal Interface Pad,Phase-change thermal pad for heat sink attachment,units,medium,
+COMP-126,Ferrite Core Transformer,High-frequency ferrite core for isolated supply,units,medium,ISO-9001
+COMP-127,EMI Filter Module,Common mode choke and filter for EMC compliance,units,medium,ISO-9001
+COMP-128,Crystal Oscillator 16MHz,SMD crystal oscillator for MCU clock source,units,medium,
+COMP-129,Mounting Bracket M4,M4 steel mounting bracket for PCB enclosure,units,low,
+COMP-130,Cable Tie Pack,Nylon cable management ties 200mm,units,low,
+COMP-131,Heat Shrink Tubing,Polyolefin 3:1 heat shrink tubing 6mm,meters,low,
+COMP-132,Connector Housing 12P,12-pin AMP connector housing for harness,units,low,

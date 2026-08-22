@@ -43,7 +43,7 @@ export async function getSuppliers(componentId?: string): Promise<SupplierCapabi
         sc.expedite_available,
         sc.expedite_fee::float,
         c.required_certification,
-        (c.required_certification = ANY(sc.certifications)) AS has_required_certification
+        (c.required_certification IS NULL OR c.required_certification = ANY(sc.certifications)) AS has_required_certification
       FROM simulation.suppliers s
       JOIN simulation.supplier_components sc ON s.supplier_id = sc.supplier_id
       JOIN simulation.components c ON sc.component_id = c.component_id

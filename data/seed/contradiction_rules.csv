@@ -1,0 +1,5 @@
+supplier_claim,tracking_status,description
+dispatched,label_created_no_pickup,"Supplier claims shipment has been dispatched, but tracking confirms carrier has not picked up package (label_created_no_pickup)."
+in_transit,no_scan_72h,No carrier scan in 72h despite supplier in-transit claim
+delivered,last_scan_in_origin_city,Supplier claims delivered but last carrier scan is still in origin city
+in_transit,returned_to_sender,Package marked returned to sender while supplier claims in transit

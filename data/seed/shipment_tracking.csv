@@ -1,0 +1,11 @@
+tracking_id,po_id,supplier_claim,tracking_status,last_movement
+TRK-7712,PO-7712,dispatched,label_created_no_pickup,
+TRK-7803,PO-7803,in_transit,no_scan_72h,
+TRK-7811,PO-7811,dispatched,label_created_no_pickup,
+TRK-7812,PO-7812,in_transit,returned_to_sender,
+TRK-7815,PO-7815,delivered,delivered,2026-09-05 14:30:00+00
+TRK-7816,PO-7816,delivered,delivered,2026-08-28 11:15:00+00
+TRK-7817,PO-7817,delivered,delivered,2026-08-25 16:45:00+00
+TRK-7818,PO-7818,delivered,delivered,2026-08-20 09:20:00+00
+TRK-7819,PO-7819,delivered,delivered,2026-08-18 13:10:00+00
+TRK-7820,PO-7820,delivered,delivered,2026-08-15 17:00:00+00

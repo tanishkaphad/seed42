@@ -1,5 +1,23 @@
 import { query } from './database.js';
 
+// ponytail: lazy-loaded Map, O(1) lookup. Invalidated by invalidateContradictionCache().
+let rulesCache: Map<string, string> | null = null;
+
+async function getContradictionRules(): Promise<Map<string, string>> {
+  if (rulesCache) return rulesCache;
+  const res = await query(
+    `SELECT supplier_claim, tracking_status, description FROM simulation.tracking_contradiction_rules`
+  );
+  rulesCache = new Map(
+    res.rows.map((r: any) => [`${r.supplier_claim}:${r.tracking_status}`, r.description])
+  );
+  return rulesCache;
+}
+
+export function invalidateContradictionCache(): void {
+  rulesCache = null;
+}
+
 export interface ShipmentTrackingRecord {
   tracking_id: string;
   po_id: string;
@@ -27,16 +45,14 @@ export async function getTrackingByPoId(poId: string): Promise<ShipmentTrackingR
   if (res.rows.length === 0) return null;
 
   const row = res.rows[0];
-  const isContradictory =
-    row.supplier_claim === 'dispatched' &&
-    row.tracking_status === 'label_created_no_pickup';
+  const rules = await getContradictionRules();
+  const key = `${row.supplier_claim}:${row.tracking_status}`;
+  const discrepancy = rules.get(key) ?? null;
 
   return {
     ...row,
-    contradiction_detected: isContradictory,
-    discrepancy_details: isContradictory
-      ? 'Supplier claims shipment has been dispatched, but tracking confirms carrier has not picked up package (label_created_no_pickup).'
-      : null,
+    contradiction_detected: !!discrepancy,
+    discrepancy_details: discrepancy,
   };
 }
 

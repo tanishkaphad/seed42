@@ -18,8 +18,40 @@ import {
 } from '../sim/events.js';
 import { resetSimulation } from '../sim/database.js';
 import { recordAuditTrail, getAuditTrail } from '../audit/trail.js';
+import { runSync } from '../ingest/sync.js';
+import { getAllConfig, setConfigValue } from '../sim/config.js';
+import { evaluateDisruption, executeRecoveryPlan } from '../sim/recovery.js';
+import { processDisruptionFlow } from '../agent/disruptionController.js';
 
 export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
+  // 0. Root Landing
+  fastify.get('/', async (request, reply) => {
+    return {
+      service: 'seed42-disruption-agent',
+      version: '1.0.0',
+      description: 'Autonomous Supply Chain Disruption Intelligence & Recovery Simulation API',
+      endpoints: {
+        health: 'GET /health',
+        inventory: 'GET /inventory or GET /inventory/:component_id',
+        purchase_orders: 'GET /purchase-orders or GET /purchase-orders/:po_id',
+        suppliers: 'GET /suppliers?component_id=COMP-104',
+        production_schedule: 'GET /production-schedule',
+        tracking: 'GET /tracking/:po_id',
+        disruptions: 'GET /disruptions',
+        simulation_state: 'GET /simulation/state',
+        groq_agent_email_flow: 'POST /agent/process-email',
+        groq_agent_evaluate: 'POST /agent/evaluate',
+        recovery_evaluate: 'POST /recovery/evaluate',
+        recovery_execute: 'POST /recovery/execute',
+        csv_sync: 'POST /ingest/sync',
+        config: 'GET /config or PATCH /config/:key',
+      },
+      quick_test: {
+        curl_example: `curl -X POST http://localhost:3000/agent/process-email -H "Content-Type: application/json" -d "{\\"email_body\\":\\"PO-7712 is delayed by 5 days due to Chennai port congestion.\\"}"`,
+      },
+    };
+  });
+
   // 1. Health
   fastify.get('/health', async (request, reply) => {
     try {
@@ -379,6 +411,148 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     } catch (err: any) {
       reply.status(500);
       return { error: 'Failed to record audit trail', details: err.message };
+    }
+  });
+
+  // 16. Ingest — trigger CSV sync
+  fastify.post('/ingest/sync', async (request, reply) => {
+    const { include_hidden } = (request.query as any);
+    const includeHidden = include_hidden === 'true';
+    try {
+      const results = await runSync(includeHidden);
+      const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
+      reply.status(totalErrors > 0 ? 207 : 200);
+      return { status: totalErrors > 0 ? 'partial' : 'ok', results };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Sync failed', details: err.message };
+    }
+  });
+
+  // 17. Config — read and update business rules
+  fastify.get('/config', async (request, reply) => {
+    try {
+      return await getAllConfig();
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to retrieve config', details: err.message };
+    }
+  });
+
+  fastify.patch('/config/:key', async (request, reply) => {
+    const { key } = request.params as { key: string };
+    const { value } = request.body as { value: string };
+    if (!value) {
+      reply.status(400);
+      return { error: 'value is required' };
+    }
+    try {
+      await setConfigValue(key, String(value));
+      return { key, value: String(value), updated: true };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to update config', details: err.message };
+    }
+  });
+
+  // 18. Recovery Decision Engine
+  fastify.post('/recovery/evaluate', async (request, reply) => {
+    const bodySchema = z.object({
+      component_id: z.string().min(1),
+      reported_delay_days: z.number().optional(),
+      po_id: z.string().optional(),
+      order_quantity: z.number().optional(),
+    });
+
+    const parsed = bodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid recovery evaluation request', issues: parsed.error.issues };
+    }
+
+    try {
+      const evaluation = await evaluateDisruption(parsed.data);
+      return evaluation;
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Recovery evaluation failed', details: err.message };
+    }
+  });
+
+  fastify.post('/recovery/execute', async (request, reply) => {
+    const bodySchema = z.object({
+      component_id: z.string().min(1),
+      reported_delay_days: z.number().optional(),
+      po_id: z.string().optional(),
+      order_quantity: z.number().optional(),
+    });
+
+    const parsed = bodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid recovery execution request', issues: parsed.error.issues };
+    }
+
+    try {
+      const evaluation = await evaluateDisruption(parsed.data);
+      const execution = await executeRecoveryPlan(evaluation);
+      return { evaluation, execution };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Recovery execution failed', details: err.message };
+    }
+  });
+
+  // 19. Groq Autonomous AI Disruption Flow
+  fastify.post('/agent/process-email', async (request, reply) => {
+    const bodySchema = z.object({
+      email_body: z.string().min(1, 'email_body is required'),
+      subject: z.string().optional(),
+      from_email: z.string().optional(),
+    });
+
+    const parsed = bodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid email payload', issues: parsed.error.issues };
+    }
+
+    try {
+      const report = await processDisruptionFlow(parsed.data);
+      return report;
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Groq autonomous disruption processing failed', details: err.message };
+    }
+  });
+
+  fastify.post('/agent/evaluate', async (request, reply) => {
+    const bodySchema = z.object({
+      component_id: z.string().optional(),
+      po_id: z.string().optional(),
+      reported_delay_days: z.number().optional(),
+      email_body: z.string().optional(),
+      subject: z.string().optional(),
+    });
+
+    const parsed = bodySchema.safeParse(request.body || {});
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid evaluation payload', issues: parsed.error.issues };
+    }
+
+    try {
+      const report = await processDisruptionFlow({
+        email_body: parsed.data.email_body || '',
+        subject: parsed.data.subject,
+        po_id: parsed.data.po_id,
+        component_id: parsed.data.component_id,
+        reported_delay_days: parsed.data.reported_delay_days,
+      });
+      return report;
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Groq autonomous evaluation failed', details: err.message };
     }
   });
 };

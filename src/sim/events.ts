@@ -179,31 +179,41 @@ export async function advanceSimulationTime(steps: number = 1): Promise<{
   const executedList: SimulationEventRecord[] = [];
 
   for (const event of eventsToExecute) {
-    const payload = typeof event.payload === 'string' ? JSON.parse(event.payload) : event.payload;
+    let payload = event.payload;
+    while (typeof payload === 'string') {
+      try {
+        payload = JSON.parse(payload);
+      } catch {
+        break;
+      }
+    }
+    payload = payload || {};
 
     switch (event.event_type) {
       case 'inventory_correction': {
-        if (payload.component_id && payload.usable_stock !== undefined) {
+        const targetStock = Number(payload.usable_stock);
+        if (payload.component_id && !isNaN(targetStock)) {
           await updateUsableInventory(
             payload.component_id,
-            payload.usable_stock,
+            targetStock,
             `Event ${event.event_id}: ${event.description}`
           );
         }
         break;
       }
       case 'demand_spike': {
-        if (payload.component_id && payload.daily_usage !== undefined) {
+        const targetDailyUsage = Number(payload.daily_usage);
+        if (payload.component_id && !isNaN(targetDailyUsage)) {
           await query(
             `UPDATE simulation.inventory SET daily_usage = $1, last_updated = CURRENT_TIMESTAMP WHERE component_id = $2`,
-            [payload.daily_usage, payload.component_id]
+            [targetDailyUsage, payload.component_id]
           );
           await logErpUpdate(
             'inventory',
             payload.component_id,
             'demand_spike',
             {},
-            { daily_usage: payload.daily_usage },
+            { daily_usage: targetDailyUsage },
             `Event ${event.event_id}: ${event.description}`
           );
         }

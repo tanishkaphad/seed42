@@ -1,0 +1,16 @@
+supplier_id,supplier_name,email,reliability_score,quality_score,active
+SUP-01,Bharat Electronics Components,bec@example.com,0.97,0.96,true
+SUP-02,Tata AutoComp Systems,tatacomp@example.com,0.94,0.95,true
+SUP-03,Minda Industries Ltd,minda@example.com,0.91,0.93,true
+SUP-04,Uno Minda Electronics,unominda@example.com,0.88,0.89,true
+SUP-05,Motherson Sumi Systems,motherson@example.com,0.85,0.87,true
+SUP-06,Lumax Industries Ltd,lumax@example.com,0.82,0.84,true
+SUP-07,Suprajit Engineering,suprajit@example.com,0.79,0.82,true
+SUP-08,Sandhar Technologies,sandhar@example.com,0.75,0.78,true
+SUP-09,Pricol Limited,pricol@example.com,0.71,0.74,true
+SUP-10,Jay Bharat Maruti,jaybharat@example.com,0.67,0.70,true
+SUP-11,Subros Limited,subros@example.com,0.58,0.63,true
+SUP-18,Budget Electronics,supplier18@example.com,0.65,0.75,true
+SUP-21,Original Components Ltd,supplier21@example.com,0.72,0.92,true
+SUP-37,Precision Components Pvt Ltd,supplier37@example.com,0.95,0.97,true
+SUP-42,Western Components Ltd,supplier42@example.com,0.81,0.94,true

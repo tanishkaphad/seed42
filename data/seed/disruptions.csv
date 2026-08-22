@@ -1,0 +1,7 @@
+disruption_id,disruption_type,component_id,po_id,production_order_id,severity,description,active,detected
+DIS-001,supplier_delay,COMP-104,PO-7712,PROD-882,high,Primary supplier reports 5-7 day delivery delay on active purchase order,true,false
+DIS-002,quality_rejection,COMP-101,,PROD-901,critical,Incoming batch of COMP-101 failed AEC-Q100 certification inspection at goods receipt,true,false
+DIS-003,port_congestion,COMP-103,PO-7803,PROD-902,medium,Chennai port congestion delaying inbound shipment for COMP-103,true,false
+DIS-004,demand_spike,COMP-102,,PROD-906,high,Urgent OEM customer order surge doubles daily consumption requirement for COMP-102,true,false
+DIS-005,supplier_bankruptcy,COMP-105,,PROD-882,critical,SUP-11 declared insolvency proceedings - alternate sourcing required immediately for COMP-105,true,false
+DIS-006,damaged_inventory,COMP-110,,PROD-903,medium,Warehouse cycle count reveals 35 percent of COMP-110 usable stock has moisture damage,true,false

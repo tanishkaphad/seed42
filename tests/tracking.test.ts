@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { getTrackingByPoId } from '../src/sim/tracking.js';
-import { seedGoldenScenario, closePool } from '../src/sim/database.js';
+import { resetSimulation, closePool } from '../src/sim/database.js';
 
 describe('Shipment Tracking & Contradiction Detection', () => {
   beforeAll(async () => {
-    await seedGoldenScenario();
+    await resetSimulation();
   });
 
   afterAll(async () => {

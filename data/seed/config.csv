@@ -1,0 +1,4 @@
+key,value,description
+approval_threshold,150000,Auto-approve purchase orders below this INR value
+safety_stock_multiplier,1.5,Multiplier on daily_usage for safety stock calculation
+rfq_valid_hours,24,Default quote validity window in hours

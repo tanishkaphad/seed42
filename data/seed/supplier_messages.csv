@@ -1,0 +1,16 @@
+message_id,supplier_id,po_id,direction,subject,body,message_status
+MSG-001,SUP-21,PO-7712,inbound,Delay on PO-7712,Due to transport issues delivery may be delayed by 5-7 days. We are trying to resolve this and will update soon.,delivered
+MSG-002,SUP-02,PO-7803,inbound,RE: PO-7803 Status Update,Port congestion at Chennai is affecting our outbound shipments. Expected delay is 6-8 days. We will expedite once the backlog clears.,delivered
+MSG-003,SUP-02,PO-7811,inbound,RE: PO-7811 Update,We are reviewing capacity with our logistics team. Will follow up once allocations are confirmed.,delivered
+MSG-004,SUP-01,PO-7801,inbound,RE: PO-7801 Confirmation,Order confirmed and in production. Dispatch on schedule for 2026-09-08. Tracking will be shared 24h before dispatch.,delivered
+MSG-005,SUP-37,PO-7812,inbound,RE: PO-7812 Delayed,Material sourcing issue has pushed our dispatch by 5 days. New estimated delivery 2026-09-23.,delivered
+MSG-006,SUP-03,PO-7813,inbound,RE: PO-7813 Status,We are assessing current warehouse allocations. We will revert with a confirmed timeline by end of week.,delivered
+MSG-007,SUP-01,PO-7804,inbound,RE: PO-7804 Ready for Dispatch,Stock is ready and packed. We confirm dispatch by 2026-09-10 as agreed.,delivered
+MSG-008,SUP-01,PO-7810,inbound,RE: PO-7810 Dispatched,Shipment dispatched today via Blue Dart. AWB number will be shared via email.,delivered
+MSG-009,SUP-42,PO-7712,inbound,RE: Emergency Procurement Inquiry,We can fulfill emergency orders with 4 days lead time. Expedited delivery available for urgent scenarios with express freight surcharge.,delivered
+MSG-010,SUP-18,PO-7712,inbound,RE: Fast Delivery Availability,We have COMP-104 inventory available for 3-day turnaround. Note: standard ISO-9001 certification applies only.,delivered
+MSG-011,SUP-04,PO-7814,inbound,RE: PO-7814 Inquiry,Our dispatch team confirms shipment is ready. However internal QC hold has been raised on last batch. We are investigating and will update in 48h.,delivered
+MSG-012,SUP-21,PO-7712,outbound,Status Update Request PO-7712,Please provide an urgent update on the delivery status for PO-7712. Our production schedule is at risk.,sent
+MSG-013,SUP-42,PO-7712,outbound,Emergency Procurement Inquiry COMP-104,We require 1000 units of COMP-104 urgently due to a delay on our existing order. Please confirm availability and earliest delivery date.,sent
+MSG-014,SUP-18,PO-7712,outbound,Fast Delivery Availability Check COMP-104,Can you fulfill 1000 units of COMP-104 with 3-day delivery? Please confirm certification level and pricing.,sent
+MSG-015,SUP-03,PO-7813,outbound,Escalation PO-7813 Delay,This is a formal escalation. PO-7813 is now 8 days delayed. Please provide a committed delivery date within 24h or we will need to source from alternate suppliers.,sent

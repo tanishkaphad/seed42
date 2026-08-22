@@ -1,0 +1,8 @@
+production_order_id,product,component_id,units_planned,component_required_per_unit,deadline,priority,status
+PROD-882,Smart Controller Unit,COMP-104,700,1,2026-09-06,high,scheduled
+PROD-901,EV Battery Pack,COMP-101,400,2,2026-09-02,critical,scheduled
+PROD-902,ADAS Control Module,COMP-103,200,1,2026-09-05,critical,scheduled
+PROD-903,Motor Control Unit,COMP-109,600,1,2026-09-12,high,scheduled
+PROD-904,Inverter Assembly,COMP-107,300,2,2026-09-18,high,scheduled
+PROD-905,Sensor Cluster Board,COMP-112,800,3,2026-09-28,medium,scheduled
+PROD-906,Vehicle Communication Hub,COMP-102,500,1,2026-10-08,medium,scheduled

@@ -1,5 +1,6 @@
 import { query } from './database.js';
 import { logErpUpdate } from './erp.js';
+import { getConfigValue } from './config.js';
 
 export interface PurchaseOrderRecord {
   po_id: string;
@@ -109,7 +110,8 @@ export async function createPurchaseOrder(data: {
   approval_threshold?: number;
 }): Promise<PurchaseOrderRecord> {
   const totalValue = data.quantity * data.unit_price;
-  const threshold = data.approval_threshold ?? 150000;
+  const configThreshold = await getConfigValue('approval_threshold');
+  const threshold = data.approval_threshold ?? (configThreshold ? Number(configThreshold) : 150000);
   const poId = `PO-${Date.now().toString().slice(-4)}${Math.floor(Math.random() * 1000)}`;
   const status = data.status || 'placed';
 

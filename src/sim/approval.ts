@@ -1,5 +1,6 @@
 import { query } from './database.js';
 import { env } from '../config/env.js';
+import { getConfigValue } from './config.js';
 
 export interface ApprovalRecord {
   approval_id: string;
@@ -18,7 +19,9 @@ export async function checkApproval(data: {
   approval_threshold?: number;
   reason?: string;
 }): Promise<ApprovalRecord> {
-  const threshold = data.approval_threshold ?? env.DEFAULT_APPROVAL_THRESHOLD;
+  const configVal = await getConfigValue('approval_threshold');
+  const fallback = configVal ? Number(configVal) : env.DEFAULT_APPROVAL_THRESHOLD;
+  const threshold = data.approval_threshold ?? fallback;
   const approvalRequired = data.estimated_cost > threshold;
   const approvalId = `APP-${Date.now().toString().slice(-4)}${Math.floor(Math.random() * 1000)}`;
 

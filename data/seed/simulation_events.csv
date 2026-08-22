@@ -1,0 +1,8 @@
+event_id,event_type,event_time,description,payload,executed
+EVT-001,inventory_correction,2,Warehouse cycle count reveals damaged stock for COMP-104,"{""component_id"":""COMP-104"",""usable_stock"":250}",false
+EVT-002,demand_spike,5,Customer surge increases daily consumption for COMP-104,"{""component_id"":""COMP-104"",""daily_usage"":120}",false
+EVT-003,supplier_delay,4,Port congestion delays PO-7803 further,"{""po_id"":""PO-7803""}",false
+EVT-004,inventory_correction,3,QC rejection corrects usable stock for COMP-101,"{""component_id"":""COMP-101"",""usable_stock"":580}",false
+EVT-005,demand_spike,7,EV production ramp increases COMP-105 daily usage,"{""component_id"":""COMP-105"",""daily_usage"":45}",false
+EVT-006,expedite_unavailable,6,SUP-42 disables expedite option for COMP-104,"{""supplier_id"":""SUP-42"",""component_id"":""COMP-104""}",false
+EVT-007,supplier_delay,9,SUP-03 reports additional 4-day delay on PO-7808,"{""po_id"":""PO-7808""}",false

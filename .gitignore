@@ -25,3 +25,6 @@ __pycache__/
 # Prisma
 prisma/*.db
 prisma/*.db-journal
+
+# Hidden evaluation data — do NOT commit
+data/hidden/

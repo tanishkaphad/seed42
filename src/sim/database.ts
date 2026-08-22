@@ -48,46 +48,60 @@ export async function closePool(): Promise<void> {
 }
 
 /**
- * Execute the 01_schema.sql script to ensure the `simulation` schema and all 16 tables exist.
+ * Execute schema scripts to ensure all tables exist.
  */
 export async function initDb(): Promise<void> {
-  const schemaPath = path.resolve(process.cwd(), 'database', '01_schema.sql');
-  const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+  const dbDir = path.resolve(process.cwd(), 'database');
+  const schemaSql = fs.readFileSync(path.join(dbDir, '01_schema.sql'), 'utf8');
   await query(schemaSql);
+
+  const rulesPath = path.join(dbDir, '05_contradiction_rules.sql');
+  if (fs.existsSync(rulesPath)) {
+    const rulesSql = fs.readFileSync(rulesPath, 'utf8');
+    await query(rulesSql);
+  }
+
+  const configPath = path.join(dbDir, '06_config.sql');
+  if (fs.existsSync(configPath)) {
+    const configSql = fs.readFileSync(configPath, 'utf8');
+    await query(configSql);
+  }
 }
 
 /**
- * Seed the golden scenario data into the database.
+ * Seed the simulation database using the CSV ingestion pipeline.
  */
 export async function seedGoldenScenario(): Promise<void> {
-  const seedPath = path.resolve(process.cwd(), 'database', '02_seed_data.sql');
-  const seedSql = fs.readFileSync(seedPath, 'utf8');
-  await query(seedSql);
+  await resetSimulation();
 }
 
 /**
- * Reset simulation schema state back to the golden scenario without dropping the database.
+ * Reset simulation schema state back to clean baseline using CSV sync.
  */
 export async function resetSimulation(): Promise<void> {
   const resetSql = `
-    -- Clear simulation data cleanly in reverse FK order
-    DELETE FROM simulation.audit_trail;
-    DELETE FROM simulation.erp_updates;
-    DELETE FROM simulation.simulation_events;
-    DELETE FROM simulation.shipment_tracking;
-    DELETE FROM simulation.approvals;
-    DELETE FROM simulation.rfq_quotes;
-    DELETE FROM simulation.rfqs;
-    DELETE FROM simulation.supplier_messages;
-    DELETE FROM simulation.disruptions;
-    DELETE FROM simulation.purchase_orders;
-    DELETE FROM simulation.production_orders;
-    DELETE FROM simulation.supplier_components;
-    DELETE FROM simulation.inventory;
-    DELETE FROM simulation.suppliers;
-    DELETE FROM simulation.components;
-    DELETE FROM simulation.simulation_state;
+    TRUNCATE TABLE 
+      simulation.audit_trail,
+      simulation.erp_updates,
+      simulation.simulation_events,
+      simulation.shipment_tracking,
+      simulation.approvals,
+      simulation.rfq_quotes,
+      simulation.rfqs,
+      simulation.supplier_messages,
+      simulation.disruptions,
+      simulation.purchase_orders,
+      simulation.production_orders,
+      simulation.supplier_components,
+      simulation.inventory,
+      simulation.suppliers,
+      simulation.components,
+      simulation.config,
+      simulation.tracking_contradiction_rules,
+      simulation.simulation_state
+    CASCADE;
   `;
   await query(resetSql);
-  await seedGoldenScenario();
+  const { runSync } = await import('../ingest/sync.js');
+  await runSync();
 }
