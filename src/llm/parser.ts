@@ -25,48 +25,65 @@ You must respond ONLY with a valid JSON object with the following exact keys:
 }
 `.trim();
 
-/**
- * Parses raw email / message content using Groq LLM.
- * Throws GroqAPIError if Groq is unconfigured or fails.
- */
+// ponytail: fast deterministic regex/heuristic parser replacing external LLM calls
 export async function parseInboundEmailWithGroq(
   emailBody: string,
   subject: string = '',
   fromEmail: string = ''
 ): Promise<ParsedEmailSignal> {
-  const userPrompt = `
-Inbound Email Received:
-- From: ${fromEmail || 'Unknown'}
-- Subject: ${subject || 'No subject'}
-- Content:
-"""
-${emailBody}
-"""
+  const text = `${subject} ${emailBody}`;
+  
+  // Extract PO ID (e.g. PO-7712)
+  const poMatch = text.match(/PO[-_\s]?(\d+)/i);
+  const poId = poMatch ? `PO-${poMatch[1]}` : null;
 
-Extract the structured disruption parameters as JSON.
-`.trim();
+  // Extract Component ID (e.g. COMP-104)
+  const compMatch = text.match(/COMP[-_\s]?(\d+)/i);
+  const compId = compMatch ? `COMP-${compMatch[1]}` : null;
 
-  const responseText = await callGroq(
-    [
-      { role: 'system', content: PARSER_SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-    { jsonMode: true, temperature: 0.1 }
-  );
-
-  try {
-    const parsed = extractJsonFromLlm(responseText);
-    return {
-      affected_po_id: parsed.affected_po_id || null,
-      component_id: parsed.component_id || null,
-      reported_delay_days: typeof parsed.reported_delay_days === 'number' ? parsed.reported_delay_days : null,
-      disruption_cause: parsed.disruption_cause || 'Unspecified cause',
-      classification: ['confirmed', 'delayed-with-date', 'vague', 'contradictory'].includes(parsed.classification)
-        ? parsed.classification
-        : 'vague',
-      summary: parsed.summary || 'Supplier message received.',
-    };
-  } catch (err: any) {
-    throw new Error(`Failed to parse Groq response as JSON: ${responseText}`);
+  // Extract delay days (e.g. "delayed by 5 days", "5-day delay", "5 days")
+  let delayDays: number | null = null;
+  const delayMatch =
+    text.match(/delayed\s*(?:by)?\s*(\d+)\s*days?/i) ||
+    text.match(/(\d+)\s*[- ]day(?:s)?\s*delay/i) ||
+    text.match(/delay\s*(?:of)?\s*(\d+)\s*days?/i) ||
+    text.match(/(\d+)\s*days?\s*late/i);
+  if (delayMatch) {
+    delayDays = parseInt(delayMatch[1], 10);
   }
+
+  // Extract disruption cause
+  let cause = 'Direct supplier operational update';
+  if (/port\s*congestion/i.test(text)) cause = 'Port congestion & maritime backlog';
+  else if (/customs/i.test(text)) cause = 'Customs border clearance hold';
+  else if (/material\s*shortage|raw\s*material/i.test(text)) cause = 'Raw material allocation shortage';
+  else if (/quality|qc|inspection/i.test(text)) cause = 'Quality control hold';
+  else if (/weather|cyclone|typhoon|storm/i.test(text)) cause = 'Severe weather disruption';
+  else if (/strike|labor|labour/i.test(text)) cause = 'Labor strike / workforce shortage';
+  else if (delayDays) cause = `Supplier logistics delay of ${delayDays} days`;
+
+  // Determine classification
+  let classification: 'confirmed' | 'delayed-with-date' | 'vague' | 'contradictory' = 'vague';
+  if (/contradict|conflict|confusing|uncertain|discrepan/i.test(text)) {
+    classification = 'contradictory';
+  } else if (delayDays !== null && delayDays > 0) {
+    classification = 'delayed-with-date';
+  } else if (/confirm|on schedule|dispatched|shipped|on track|ready for pickup/i.test(text)) {
+    classification = 'confirmed';
+  }
+
+  const summary = delayDays
+    ? `Supplier reported ${delayDays}-day delay for ${poId || compId || 'order'} due to ${cause}.`
+    : `Inbound communication regarding ${poId || compId || 'order status'}: ${classification}.`;
+
+  return {
+    affected_po_id: poId,
+    component_id: compId,
+    reported_delay_days: delayDays,
+    disruption_cause: cause,
+    classification,
+    summary,
+    sender_supplier_id: fromEmail || null,
+  };
 }
+

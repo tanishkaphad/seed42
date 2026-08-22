@@ -93,6 +93,7 @@ export async function sendSupplierMessage(params: SendMessageParams): Promise<Su
   };
 }
 
+// ponytail: deterministic rule-based template generation without external LLM call
 export async function generateSupplierResponse(
   supplier: { supplier_id: string; supplier_name?: string; reliability_score: number; quality_score?: number },
   poId?: string,
@@ -100,89 +101,73 @@ export async function generateSupplierResponse(
 ): Promise<{ inboundBody: string; inboundSubject: string; classification: 'confirmed' | 'delayed-with-date' | 'vague' | 'contradictory' }> {
   const score = Number(supplier.reliability_score);
   const supplierName = supplier.supplier_name || supplier.supplier_id;
+  const poRef = poId ? ` for ${poId}` : '';
 
-  const systemPrompt = `
-You are an autonomous supplier simulator. You are roleplaying as "${supplierName}" (Supplier ID: ${supplier.supplier_id}).
-Your profile:
-- Reliability Score: ${score} (1.0 = highly dependable, 0.5 = prone to vague/contradictory replies or delays)
-- Quality Score: ${supplier.quality_score ?? 0.9}
-
-Generate a realistic commercial reply to the buyer's inquiry.
-Behavioral guidance based on reliability score ${score}:
-- If reliability >= 0.90: You are helpful, confirm orders promptly or offer firm committed delivery timelines. Classification: "confirmed".
-- If reliability 0.70 to 0.89: You report realistic logistics constraints or 3-6 day delays with a firm revised date. Classification: "delayed-with-date".
-- If reliability 0.50 to 0.69: You give non-committal, vague answers ("reviewing capacity with warehouse", "will update later"). Classification: "vague".
-- If reliability < 0.50: You give evasive, confusing, or contradictory answers. Classification: "contradictory".
-
-Respond strictly with a JSON object:
-{
-  "inboundSubject": string (e.g. "RE: Status Update on PO-7712"),
-  "inboundBody": string (realistic, natural business email response from the supplier),
-  "classification": "confirmed" | "delayed-with-date" | "vague" | "contradictory"
-}
-`.trim();
-
-  const userPrompt = `
-Buyer Outbound Message:
-- PO ID: ${poId || 'N/A'}
-- Message Body:
-"""
-${requestBody || 'Please provide an update on order availability and delivery timeline.'}
-"""
-
-Generate the simulated supplier response as JSON.
-`.trim();
-
-  const responseText = await callGroq(
-    [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    { jsonMode: true, temperature: 0.3 }
-  );
-
-  try {
-    const parsed = extractJsonFromLlm(responseText);
+  if (score >= 0.90) {
     return {
-      inboundSubject: parsed.inboundSubject || `RE: Inquiry ${poId || ''}`,
-      inboundBody: parsed.inboundBody || 'Thank you for your message. We are processing your request.',
-      classification: ['confirmed', 'delayed-with-date', 'vague', 'contradictory'].includes(parsed.classification)
-        ? parsed.classification
-        : 'vague',
+      inboundSubject: `RE: Confirmation & Commitment${poRef}`,
+      inboundBody: `Dear Buyer,\n\nWe confirm receipt of your inquiry${poRef}. All items have passed our quality control procedures and remain on strict delivery schedule. Dispatch is confirmed.\n\nBest regards,\n${supplierName} Fulfillment Team`,
+      classification: 'confirmed',
     };
-  } catch (err: any) {
-    throw new Error(`Failed to parse Groq supplier response as JSON: ${responseText}`);
+  } else if (score >= 0.70) {
+    return {
+      inboundSubject: `RE: Delivery Schedule Update${poRef}`,
+      inboundBody: `Dear Buyer,\n\nDue to port logistics clearance and carrier re-routing, delivery${poRef} will be delayed by 4 business days. Revised estimated arrival date has been committed with our dispatch team.\n\nSincerely,\n${supplierName} Operations`,
+      classification: 'delayed-with-date',
+    };
+  } else if (score >= 0.50) {
+    return {
+      inboundSubject: `RE: Inquiry Acknowledgement${poRef}`,
+      inboundBody: `Hello,\n\nWe have received your message regarding${poRef}. We are currently reviewing warehouse capacity and allocation. We will follow up once information becomes available.\n\nRegards,\n${supplierName} Support`,
+      classification: 'vague',
+    };
+  } else {
+    return {
+      inboundSubject: `RE: Urgent Notice${poRef}`,
+      inboundBody: `Notice: Conflicting production updates have been flagged for order${poRef}. Line capacity is restricted and raw material availability is unverified.\n\n${supplierName}`,
+      classification: 'contradictory',
+    };
   }
 }
 
-export async function getSupplierMessages(supplierId?: string, poId?: string): Promise<SupplierMessageRecord[]> {
+export async function getSupplierMessages(
+  supplierId?: string,
+  poId?: string,
+  direction?: 'inbound' | 'outbound'
+): Promise<any[]> {
   let sql = `
     SELECT 
-      message_id,
-      supplier_id,
-      po_id,
-      direction,
-      subject,
-      body,
-      message_status,
-      sent_at
-    FROM simulation.supplier_messages
+      m.message_id,
+      m.supplier_id,
+      s.supplier_name,
+      m.po_id,
+      m.direction,
+      m.subject,
+      m.body,
+      m.message_status,
+      m.sent_at
+    FROM simulation.supplier_messages m
+    LEFT JOIN simulation.suppliers s ON m.supplier_id = s.supplier_id
+    WHERE 1=1
   `;
   const params: any[] = [];
 
-  if (supplierId && poId) {
-    sql += ` WHERE supplier_id = $1 AND po_id = $2`;
-    params.push(supplierId, poId);
-  } else if (supplierId) {
-    sql += ` WHERE supplier_id = $1`;
+  if (supplierId) {
     params.push(supplierId);
-  } else if (poId) {
-    sql += ` WHERE po_id = $1`;
+    sql += ` AND m.supplier_id = $${params.length}`;
+  }
+  if (poId) {
     params.push(poId);
+    sql += ` AND m.po_id = $${params.length}`;
+  }
+  if (direction) {
+    params.push(direction);
+    sql += ` AND m.direction = $${params.length}`;
   }
 
-  sql += ` ORDER BY sent_at DESC`;
+  sql += ` ORDER BY m.sent_at DESC`;
 
   const res = await query(sql, params);
   return res.rows;
 }
+

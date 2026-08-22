@@ -149,3 +149,69 @@ export async function getRfqQuotes(rfqId: string): Promise<RfqQuoteRecord[]> {
   const res = await query(sql, [rfqId]);
   return res.rows;
 }
+
+// ponytail: single joined query to retrieve all received quotations
+export async function getAllQuotes(): Promise<RfqQuoteRecord[]> {
+  const sql = `
+    SELECT 
+      rq.quote_id,
+      rq.rfq_id,
+      r.component_id,
+      c.name AS component_name,
+      rq.supplier_id,
+      s.supplier_name,
+      rq.quantity_available,
+      rq.unit_price::float,
+      rq.delivery_days,
+      rq.expedite_available,
+      rq.expedite_fee::float,
+      sc.certifications,
+      (c.required_certification IS NULL OR c.required_certification = ANY(sc.certifications)) AS has_required_certification,
+      rq.quote_valid_hours,
+      (rq.quantity_available * rq.unit_price::float) AS total_standard_cost,
+      (rq.quantity_available * rq.unit_price::float + rq.expedite_fee::float) AS total_expedited_cost,
+      rq.accepted,
+      rq.created_at
+    FROM simulation.rfq_quotes rq
+    JOIN simulation.rfqs r ON rq.rfq_id = r.rfq_id
+    JOIN simulation.suppliers s ON rq.supplier_id = s.supplier_id
+    JOIN simulation.components c ON r.component_id = c.component_id
+    LEFT JOIN simulation.supplier_components sc ON (s.supplier_id = sc.supplier_id AND c.component_id = sc.component_id)
+    ORDER BY rq.created_at DESC;
+  `;
+  const res = await query(sql);
+  return res.rows;
+}
+
+export async function getAllRfqs(): Promise<any[]> {
+  const sql = `
+    SELECT 
+      r.rfq_id,
+      r.component_id,
+      c.name AS component_name,
+      r.requested_quantity,
+      r.required_delivery_date,
+      r.status,
+      r.created_at,
+      COUNT(q.quote_id)::int AS quote_count
+    FROM simulation.rfqs r
+    JOIN simulation.components c ON r.component_id = c.component_id
+    LEFT JOIN simulation.rfq_quotes q ON r.rfq_id = q.rfq_id
+    GROUP BY r.rfq_id, r.component_id, c.name, r.requested_quantity, r.required_delivery_date, r.status, r.created_at
+    ORDER BY r.created_at DESC;
+  `;
+  const res = await query(sql);
+  return res.rows;
+}
+
+export async function acceptQuote(quoteId: string): Promise<any> {
+  const sql = `
+    UPDATE simulation.rfq_quotes
+    SET accepted = TRUE
+    WHERE quote_id = $1
+    RETURNING *;
+  `;
+  const res = await query(sql, [quoteId]);
+  return res.rows.length > 0 ? res.rows[0] : null;
+}
+

@@ -79,3 +79,21 @@ export async function getApprovals(): Promise<ApprovalRecord[]> {
   const res = await query(sql);
   return res.rows;
 }
+
+// ponytail: direct update query avoids complex ORM abstractions
+export async function updateApprovalStatus(
+  approvalId: string,
+  status: 'approved' | 'rejected',
+  notes?: string
+): Promise<ApprovalRecord | null> {
+  const sql = `
+    UPDATE simulation.approvals
+    SET approval_status = $1,
+        reason = CASE WHEN $2::text IS NOT NULL AND $2::text != '' THEN reason || ' | Note: ' || $2 ELSE reason END
+    WHERE approval_id = $3
+    RETURNING approval_id, action_type, estimated_cost::float, approval_threshold::float, approval_required, approval_status, reason, created_at;
+  `;
+  const res = await query(sql, [status, notes || null, approvalId]);
+  return res.rows.length > 0 ? res.rows[0] : null;
+}
+

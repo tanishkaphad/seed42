@@ -5,8 +5,8 @@ import { getPurchaseOrders, getPurchaseOrderById, createPurchaseOrder } from '..
 import { getSuppliers, getSupplierById } from '../sim/suppliers.js';
 import { getProductionSchedule } from '../sim/production.js';
 import { sendSupplierMessage, getSupplierMessages } from '../sim/messaging.js';
-import { createRfq, getRfqQuotes } from '../sim/rfq.js';
-import { checkApproval, getApprovals } from '../sim/approval.js';
+import { createRfq, getRfqQuotes, getAllQuotes, getAllRfqs, acceptQuote } from '../sim/rfq.js';
+import { checkApproval, getApprovals, updateApprovalStatus } from '../sim/approval.js';
 import { getTrackingByPoId, updateTracking } from '../sim/tracking.js';
 import { logErpUpdate, getErpUpdates } from '../sim/erp.js';
 import {
@@ -25,7 +25,7 @@ import { processDisruptionFlow } from '../agent/disruptionController.js';
 
 export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   // 0. Root Landing
-  fastify.get('/', async (request, reply) => {
+  fastify.get('/api', async (request, reply) => {
     return {
       service: 'seed42-disruption-agent',
       version: '1.0.0',
@@ -38,6 +38,10 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
         production_schedule: 'GET /production-schedule',
         tracking: 'GET /tracking/:po_id',
         disruptions: 'GET /disruptions',
+        approvals: 'GET /approvals or POST /approvals/:approval_id/action',
+        supplier_messages: 'GET /supplier-messages?direction=inbound|outbound',
+        rfqs: 'GET /rfqs or POST /rfq',
+        quotes: 'GET /rfq/quotes or POST /rfq/quotes/:quote_id/accept',
         simulation_state: 'GET /simulation/state',
         groq_agent_email_flow: 'POST /agent/process-email',
         groq_agent_evaluate: 'POST /agent/evaluate',
@@ -45,9 +49,6 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
         recovery_execute: 'POST /recovery/execute',
         csv_sync: 'POST /ingest/sync',
         config: 'GET /config or PATCH /config/:key',
-      },
-      quick_test: {
-        curl_example: `curl -X POST http://localhost:3000/agent/process-email -H "Content-Type: application/json" -d "{\\"email_body\\":\\"PO-7712 is delayed by 5 days due to Chennai port congestion.\\"}"`,
       },
     };
   });
@@ -98,6 +99,35 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     }
   });
 
+  fastify.post('/inventory/:component_id/stock', async (request, reply) => {
+    const { component_id } = request.params as { component_id: string };
+    const bodySchema = z.object({
+      current_stock: z.number().int().nonnegative().optional(),
+      usable_stock: z.number().int().nonnegative().optional(),
+      reason: z.string().optional().default('Excel Grid Adjustment'),
+    });
+    const parsed = bodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid stock payload', issues: parsed.error.issues };
+    }
+
+    try {
+      const existing = await getInventoryByComponent(component_id);
+      if (!existing) {
+        reply.status(404);
+        return { error: `Component ${component_id} not found` };
+      }
+      const cur = parsed.data.current_stock ?? existing.current_stock;
+      const use = parsed.data.usable_stock ?? existing.usable_stock;
+      const updated = await updateStock(component_id, cur, use, parsed.data.reason);
+      return { status: 'success', inventory: updated };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to update stock', details: err.message };
+    }
+  });
+
   // 3. Purchase Orders
   fastify.get('/purchase-orders', async (request, reply) => {
     const querySchema = z.object({
@@ -133,7 +163,7 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     }
   });
 
-  // 4. Suppliers
+  // 4. Suppliers & Contacts
   fastify.get('/suppliers', async (request, reply) => {
     const querySchema = z.object({
       component_id: z.string().optional(),
@@ -164,7 +194,32 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     }
   });
 
-  // 6. Messaging
+  // 6. Messaging (Sent Emails & Inbound History)
+  fastify.get('/supplier-messages', async (request, reply) => {
+    const querySchema = z.object({
+      supplier_id: z.string().optional(),
+      po_id: z.string().optional(),
+      direction: z.enum(['inbound', 'outbound']).optional(),
+    });
+    const parsed = querySchema.safeParse(request.query);
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid query parameters', issues: parsed.error.issues };
+    }
+
+    try {
+      const messages = await getSupplierMessages(
+        parsed.data.supplier_id,
+        parsed.data.po_id,
+        parsed.data.direction
+      );
+      return { count: messages.length, messages };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to retrieve supplier messages', details: err.message };
+    }
+  });
+
   fastify.post('/suppliers/:supplier_id/message', async (request, reply) => {
     const { supplier_id } = request.params as { supplier_id: string };
     const bodySchema = z.object({
@@ -193,7 +248,53 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     }
   });
 
-  // 7. RFQ
+  // 7. RFQ & Quotations Received
+  fastify.get('/rfqs', async (request, reply) => {
+    try {
+      const rfqs = await getAllRfqs();
+      return { count: rfqs.length, rfqs };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to retrieve RFQs', details: err.message };
+    }
+  });
+
+  fastify.get('/rfq/quotes', async (request, reply) => {
+    try {
+      const quotes = await getAllQuotes();
+      return { count: quotes.length, quotes };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to retrieve quotes', details: err.message };
+    }
+  });
+
+  fastify.get('/rfq/:rfq_id/quotes', async (request, reply) => {
+    const { rfq_id } = request.params as { rfq_id: string };
+    try {
+      const quotes = await getRfqQuotes(rfq_id);
+      return { rfq_id, count: quotes.length, quotes };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to retrieve RFQ quotes', details: err.message };
+    }
+  });
+
+  fastify.post('/rfq/quotes/:quote_id/accept', async (request, reply) => {
+    const { quote_id } = request.params as { quote_id: string };
+    try {
+      const accepted = await acceptQuote(quote_id);
+      if (!accepted) {
+        reply.status(404);
+        return { error: `Quote ${quote_id} not found` };
+      }
+      return { status: 'success', quote: accepted };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to accept quote', details: err.message };
+    }
+  });
+
   fastify.post('/rfq', async (request, reply) => {
     const bodySchema = z.object({
       component_id: z.string().min(1),
@@ -216,7 +317,42 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     }
   });
 
-  // 8. Approval Check
+  // 8. Approvals
+  fastify.get('/approvals', async (request, reply) => {
+    try {
+      const approvals = await getApprovals();
+      return { count: approvals.length, approvals };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to retrieve approvals', details: err.message };
+    }
+  });
+
+  fastify.post('/approvals/:approval_id/action', async (request, reply) => {
+    const { approval_id } = request.params as { approval_id: string };
+    const bodySchema = z.object({
+      action: z.enum(['approved', 'rejected']),
+      notes: z.string().optional(),
+    });
+    const parsed = bodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid action payload', issues: parsed.error.issues };
+    }
+
+    try {
+      const updated = await updateApprovalStatus(approval_id, parsed.data.action, parsed.data.notes);
+      if (!updated) {
+        reply.status(404);
+        return { error: `Approval ${approval_id} not found` };
+      }
+      return { status: 'success', approval: updated };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to update approval status', details: err.message };
+    }
+  });
+
   fastify.post('/approval/check', async (request, reply) => {
     const bodySchema = z.object({
       action_type: z.string().min(1),
@@ -239,6 +375,7 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
       return { error: 'Failed to check approval', details: err.message };
     }
   });
+
 
   // 9. ERP Update
   fastify.post('/erp/update', async (request, reply) => {
