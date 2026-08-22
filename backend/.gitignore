@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/

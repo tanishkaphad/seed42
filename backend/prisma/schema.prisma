@@ -1,0 +1,304 @@
+// Prisma schema for Supply Chain Disruption Control Agent
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// ENUMS
+// ==========================================
+
+enum SupplierStatus {
+  ACTIVE
+  SUSPENDED
+  UNDER_REVIEW
+  INACTIVE
+}
+
+enum InventoryStatus {
+  IN_STOCK
+  LOW_STOCK
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ISSUED
+  CONFIRMED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  DELAYED
+}
+
+enum ProductionOrderStatus {
+  PLANNED
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  CANCELLED
+}
+
+enum TrackingEventType {
+  DEPARTED
+  CHECKPOINT
+  CUSTOMS_HOLD
+  PORT_CONGESTION
+  WEATHER_DELAY
+  DELIVERED
+  EXCEPTION
+  NO_LABEL_CREATED
+}
+
+enum DisruptionSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum DisruptionCategory {
+  SUPPLIER_DELAY
+  PORT_CONGESTION
+  NATURAL_DISASTER
+  QUALITY_ISSUE
+  LOGISTICS_FAILURE
+  GEOPOLITICAL
+  CONTRADICTORY_DATA
+}
+
+enum DisruptionStatus {
+  DETECTED
+  ANALYZING
+  MITIGATION_PROPOSED
+  RESOLVED
+  DISMISSED
+}
+
+enum RecoveryPlanStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  EXECUTING
+  COMPLETED
+  FAILED
+}
+
+enum ActorType {
+  AGENT
+  USER
+  SYSTEM
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum PriorityLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+model Supplier {
+  id                 String          @id @default(uuid())
+  name               String
+  code               String          @unique
+  contactEmail       String?         @map("contact_email")
+  contactPhone       String?         @map("contact_phone")
+  tier               Int             @default(1)
+  reliabilityScore   Float           @default(1.0) @map("reliability_score") // 0.0 to 1.0
+  leadTimeDaysAvg    Int             @default(7) @map("lead_time_days_avg")
+  iso9001Certified   Boolean         @default(true) @map("iso_9001_certified")
+  unitPrice          Float           @default(100.0) @map("unit_price")
+  availableCapacity  Int             @default(0) @map("available_capacity")
+  address            String?
+  country            String
+  status             SupplierStatus  @default(ACTIVE)
+  metadata           Json?           @default("{}")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+
+  purchaseOrders     PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model Inventory {
+  id            String          @id @default(uuid())
+  sku           String          @unique
+  name          String
+  description   String?
+  category      String
+  currentStock  Int             @default(0) @map("current_stock")
+  safetyStock   Int             @default(0) @map("safety_stock")
+  reorderPoint  Int             @default(0) @map("reorder_point")
+  unitCost      Float           @default(0.0) @map("unit_cost")
+  dailyBurnRate Float           @default(100.0) @map("daily_burn_rate")
+  currency      String          @default("USD")
+  location      String
+  status        InventoryStatus @default(IN_STOCK)
+  metadata      Json?           @default("{}")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  @@map("inventory")
+}
+
+model PurchaseOrder {
+  id                    String              @id @default(uuid())
+  poNumber              String              @unique @map("po_number")
+  supplierId            String              @map("supplier_id")
+  status                PurchaseOrderStatus @default(DRAFT)
+  quantity              Int                 @default(0)
+  unitPrice             Float               @default(0.0) @map("unit_price")
+  totalAmount           Float               @default(0.0) @map("total_amount")
+  currency              String              @default("USD")
+  orderDate             DateTime            @default(now()) @map("order_date")
+  expectedDeliveryDate  DateTime            @map("expected_delivery_date")
+  actualDeliveryDate    DateTime?           @map("actual_delivery_date")
+  supplierClaimStatus   String?             @map("supplier_claim_status")
+  supplierClaimNotes    String?             @map("supplier_claim_notes")
+  lineItems             Json                @default("[]") @map("line_items")
+  notes                 String?
+  metadata              Json?               @default("{}")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  supplier              Supplier            @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  trackingEvents        TrackingEvent[]
+
+  @@map("purchase_orders")
+}
+
+model ProductionOrder {
+  id                    String                @id @default(uuid())
+  orderNumber           String                @unique @map("order_number")
+  productName           String                @map("product_name")
+  targetQuantity        Int                   @map("target_quantity")
+  completedQuantity     Int                   @default(0) @map("completed_quantity")
+  status                ProductionOrderStatus @default(PLANNED)
+  priority              PriorityLevel         @default(MEDIUM)
+  startDate             DateTime              @map("start_date")
+  dueDate               DateTime              @map("due_date")
+  completionDate        DateTime?             @map("completion_date")
+  affectedByDisruption  Boolean               @default(false) @map("affected_by_disruption")
+  billOfMaterials       Json                  @default("[]") @map("bill_of_materials")
+  metadata              Json?                 @default("{}")
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+
+  @@map("production_orders")
+}
+
+model TrackingEvent {
+  id              String            @id @default(uuid())
+  purchaseOrderId String            @map("purchase_order_id")
+  eventType       TrackingEventType @map("event_type")
+  status          String
+  location        String?
+  carrier         String?
+  notes           String?
+  eventTimestamp  DateTime          @default(now()) @map("event_timestamp")
+  rawData         Json?             @default("{}") @map("raw_data")
+  createdAt       DateTime          @default(now()) @map("created_at")
+
+  purchaseOrder   PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@map("tracking_events")
+}
+
+model DisruptionEvent {
+  id                 String             @id @default(uuid())
+  title              String
+  description        String
+  severity           DisruptionSeverity @default(MEDIUM)
+  category           DisruptionCategory
+  status             DisruptionStatus   @default(DETECTED)
+  affectedPoIds      Json               @default("[]") @map("affected_po_ids")
+  affectedSkuIds     Json               @default("[]") @map("affected_sku_ids")
+  estimatedDelayDays Int                @default(0) @map("estimated_delay_days")
+  impactScore        Float              @default(0.0) @map("impact_score") // 0.0 to 100.0
+  detectedAt         DateTime           @default(now()) @map("detected_at")
+  resolvedAt         DateTime?          @map("resolved_at")
+  metadata           Json?              @default("{}")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  recoveryPlans      RecoveryPlan[]
+
+  @@map("disruption_events")
+}
+
+model RecoveryPlan {
+  id                 String              @id @default(uuid())
+  disruptionEventId  String              @map("disruption_event_id")
+  title              String
+  status             RecoveryPlanStatus  @default(DRAFT)
+  strategySummary    String              @map("strategy_summary")
+  proposedActions    Json                @default("[]") @map("proposed_actions")
+  costEstimate       Float               @default(0.0) @map("cost_estimate")
+  currency           String              @default("USD")
+  riskScore          Float               @default(0.0) @map("risk_score") // 0.0 to 100.0
+  timeRecoveryDays   Int                 @default(0) @map("time_recovery_days")
+  recommendedBy      String              @default("AI_AGENT") @map("recommended_by")
+  approvedBy         String?             @map("approved_by")
+  executedAt         DateTime?           @map("executed_at")
+  metadata           Json?               @default("{}")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  disruptionEvent    DisruptionEvent     @relation(fields: [disruptionEventId], references: [id], onDelete: Cascade)
+  approvalRequests   ApprovalRequest[]
+
+  @@map("recovery_plans")
+}
+
+model AuditLog {
+  id             String    @id @default(uuid())
+  action         String
+  actorType      ActorType @default(SYSTEM) @map("actor_type")
+  actorId        String?   @map("actor_id")
+  targetEntity   String    @map("target_entity")
+  targetEntityId String?   @map("target_entity_id")
+  previousState  Json?     @map("previous_state")
+  newState       Json?     @map("new_state")
+  reasoning      String?
+  metadata       Json?     @default("{}")
+  timestamp      DateTime  @default(now())
+
+  @@map("audit_logs")
+}
+
+model ApprovalRequest {
+  id             String         @id @default(uuid())
+  recoveryPlanId String         @map("recovery_plan_id")
+  actionType     String         @map("action_type")
+  requiredRole   String         @default("OPERATIONS_MANAGER") @map("required_role")
+  status         ApprovalStatus @default(PENDING)
+  riskLevel      PriorityLevel  @default(MEDIUM) @map("risk_level")
+  payload        Json           @default("{}")
+  approverNotes  String?        @map("approver_notes")
+  requestedAt    DateTime       @default(now()) @map("requested_at")
+  respondedAt    DateTime?      @map("responded_at")
+  respondedBy    String?        @map("responded_by")
+
+  recoveryPlan   RecoveryPlan   @relation(fields: [recoveryPlanId], references: [id], onDelete: Cascade)
+
+  @@map("approval_requests")
+}
