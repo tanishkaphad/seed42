@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Terminal, ChevronDown, ChevronRight, Trash2, ArrowDown } from 'lucide-react';
 import type { AgentRealtimeEvent } from '../types';

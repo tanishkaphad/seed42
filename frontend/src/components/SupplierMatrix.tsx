@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Check, X, ShieldAlert, Clock, DollarSign, Box } from 'lucide-react';
 import type { SupplierItem } from '../types';

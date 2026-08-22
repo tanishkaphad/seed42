@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Boxes, Factory, ShieldAlert } from 'lucide-react';
 import type { DemoStateResponse } from '../types';

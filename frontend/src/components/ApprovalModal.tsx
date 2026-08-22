@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { AlertOctagon, CheckCircle, XCircle } from 'lucide-react';
 import type { ApprovalRequest } from '../types';

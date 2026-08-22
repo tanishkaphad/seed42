@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { ShoppingCart } from 'lucide-react';
 import type { PurchaseOrder } from '../types';
