@@ -1,0 +1,48 @@
+{
+  "name": "seed42-disruption-agent",
+  "version": "1.0.0",
+  "description": "PostgreSQL-backed Supply Chain Simulation Environment for Team seed42",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:init": "tsx src/scripts/initDb.ts",
+    "db:seed": "tsx src/scripts/seedDb.ts",
+    "db:reset": "tsx src/scripts/resetDb.ts",
+    "prisma:generate": "prisma generate"
+  },
+  "keywords": [
+    "supply-chain",
+    "simulation",
+    "fastify",
+    "neon",
+    "postgresql",
+    "bullmq",
+    "agentic"
+  ],
+  "author": "Team seed42",
+  "license": "MIT",
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@prisma/client": "^5.20.0",
+    "bullmq": "^5.12.9",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "ioredis": "^5.4.1",
+    "pg": "^8.12.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@types/pg": "^8.11.6",
+    "@types/supertest": "^6.0.2",
+    "prisma": "^5.20.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.2",
+    "vitest": "^1.6.0"
+  }
+}

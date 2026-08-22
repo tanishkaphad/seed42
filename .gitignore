@@ -1,0 +1,27 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS and IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Testing & Coverage
+coverage/
+.pytest_cache/
+__pycache__/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal

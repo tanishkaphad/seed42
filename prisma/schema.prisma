@@ -1,0 +1,264 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["simulation"]
+}
+
+model Component {
+  component_id           String              @id
+  name                   String
+  description            String?
+  unit_of_measure        String?             @default("units")
+  criticality            String?
+  required_certification String?
+  created_at             DateTime            @default(now()) @db.Timestamptz(6)
+  inventory              Inventory[]
+  supplier_components    SupplierComponent[]
+  production_orders      ProductionOrder[]
+  purchase_orders        PurchaseOrder[]
+  rfqs                   Rfq[]
+  disruptions            Disruption[]
+
+  @@map("components")
+  @@schema("simulation")
+}
+
+model Inventory {
+  inventory_id  String    @id
+  component_id  String
+  warehouse     String
+  current_stock Int
+  usable_stock  Int
+  daily_usage   Int
+  safety_stock  Int
+  last_updated  DateTime  @default(now()) @db.Timestamptz(6)
+  component     Component @relation(fields: [component_id], references: [component_id], onDelete: Cascade)
+
+  @@map("inventory")
+  @@schema("simulation")
+}
+
+model Supplier {
+  supplier_id         String              @id
+  supplier_name       String
+  email               String
+  reliability_score   Decimal             @db.Decimal(4, 2)
+  quality_score       Decimal             @db.Decimal(4, 2)
+  active              Boolean             @default(true)
+  created_at          DateTime            @default(now()) @db.Timestamptz(6)
+  supplier_components SupplierComponent[]
+  purchase_orders     PurchaseOrder[]
+  supplier_messages   SupplierMessage[]
+  rfq_quotes          RfqQuote[]
+
+  @@map("suppliers")
+  @@schema("simulation")
+}
+
+model SupplierComponent {
+  supplier_component_id  String    @id
+  supplier_id            String
+  component_id           String
+  unit_price             Decimal   @db.Decimal(10, 2)
+  lead_time_days         Int
+  available_quantity     Int
+  minimum_order_quantity Int
+  certifications         String[]  @default([])
+  expedite_available     Boolean   @default(false)
+  expedite_fee           Decimal   @default(0) @db.Decimal(10, 2)
+  created_at             DateTime  @default(now()) @db.Timestamptz(6)
+  supplier               Supplier  @relation(fields: [supplier_id], references: [supplier_id], onDelete: Cascade)
+  component              Component @relation(fields: [component_id], references: [component_id], onDelete: Cascade)
+
+  @@map("supplier_components")
+  @@schema("simulation")
+}
+
+model ProductionOrder {
+  production_order_id         String    @id
+  product                     String
+  component_id                String
+  units_planned               Int
+  component_required_per_unit Int       @default(1)
+  deadline                    DateTime  @db.Timestamptz(6)
+  priority                    String
+  status                      String
+  created_at                  DateTime  @default(now()) @db.Timestamptz(6)
+  component                   Component @relation(fields: [component_id], references: [component_id], onDelete: Cascade)
+
+  @@map("production_orders")
+  @@schema("simulation")
+}
+
+model PurchaseOrder {
+  po_id              String             @id
+  component_id       String
+  supplier_id        String
+  quantity           Int
+  expected_delivery  DateTime           @db.Timestamptz(6)
+  status             String
+  unit_price         Decimal            @db.Decimal(10, 2)
+  total_value        Decimal            @db.Decimal(12, 2)
+  approval_threshold Decimal?           @default(150000) @db.Decimal(12, 2)
+  created_at         DateTime           @default(now()) @db.Timestamptz(6)
+  component          Component          @relation(fields: [component_id], references: [component_id], onDelete: Cascade)
+  supplier           Supplier           @relation(fields: [supplier_id], references: [supplier_id], onDelete: Cascade)
+  shipment_tracking  ShipmentTracking[]
+
+  @@map("purchase_orders")
+  @@schema("simulation")
+}
+
+model SupplierMessage {
+  message_id     String   @id
+  supplier_id    String
+  po_id          String?
+  direction      String
+  subject        String
+  body           String
+  message_status String   @default("delivered")
+  sent_at        DateTime @default(now()) @db.Timestamptz(6)
+  supplier       Supplier @relation(fields: [supplier_id], references: [supplier_id], onDelete: Cascade)
+
+  @@map("supplier_messages")
+  @@schema("simulation")
+}
+
+model Rfq {
+  rfq_id                 String     @id
+  component_id           String
+  requested_quantity     Int
+  required_delivery_date DateTime   @db.Timestamptz(6)
+  status                 String     @default("open")
+  created_at             DateTime   @default(now()) @db.Timestamptz(6)
+  component              Component  @relation(fields: [component_id], references: [component_id], onDelete: Cascade)
+  rfq_quotes             RfqQuote[]
+
+  @@map("rfqs")
+  @@schema("simulation")
+}
+
+model RfqQuote {
+  quote_id           String   @id
+  rfq_id             String
+  supplier_id        String
+  quantity_available Int
+  unit_price         Decimal  @db.Decimal(10, 2)
+  delivery_days      Int
+  expedite_available Boolean  @default(false)
+  expedite_fee       Decimal  @default(0) @db.Decimal(10, 2)
+  quote_valid_hours  Int      @default(24)
+  accepted           Boolean  @default(false)
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  rfq                Rfq      @relation(fields: [rfq_id], references: [rfq_id], onDelete: Cascade)
+  supplier           Supplier @relation(fields: [supplier_id], references: [supplier_id], onDelete: Cascade)
+
+  @@map("rfq_quotes")
+  @@schema("simulation")
+}
+
+model Approval {
+  approval_id        String   @id
+  action_type        String
+  estimated_cost     Decimal  @db.Decimal(12, 2)
+  approval_threshold Decimal  @default(150000) @db.Decimal(12, 2)
+  approval_required  Boolean
+  approval_status    String
+  reason             String
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("approvals")
+  @@schema("simulation")
+}
+
+model ShipmentTracking {
+  tracking_id         String        @id
+  po_id               String
+  supplier_claim      String
+  tracking_status     String
+  last_movement       DateTime?     @db.Timestamptz(6)
+  tracking_updated_at DateTime      @default(now()) @db.Timestamptz(6)
+  purchase_order      PurchaseOrder @relation(fields: [po_id], references: [po_id], onDelete: Cascade)
+
+  @@map("shipment_tracking")
+  @@schema("simulation")
+}
+
+model Disruption {
+  disruption_id       String    @id
+  disruption_type     String
+  component_id        String
+  po_id               String?
+  production_order_id String?
+  severity            String
+  description         String
+  active              Boolean   @default(true)
+  detected            Boolean   @default(false)
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  component           Component @relation(fields: [component_id], references: [component_id], onDelete: Cascade)
+
+  @@map("disruptions")
+  @@schema("simulation")
+}
+
+model SimulationEvent {
+  event_id    String   @id
+  event_type  String
+  event_time  Int
+  description String
+  payload     Json     @default("{}")
+  executed    Boolean  @default(false)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("simulation_events")
+  @@schema("simulation")
+}
+
+model ErpUpdate {
+  update_id      String   @id
+  entity_type    String
+  entity_id      String
+  action         String
+  previous_value Json?    @default("{}")
+  new_value      Json?    @default("{}")
+  reason         String
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("erp_updates")
+  @@schema("simulation")
+}
+
+model AuditTrail {
+  audit_id               String   @id
+  disruption_id          String
+  detected_disruption    String
+  data_sources_checked   Json?    @default("[]")
+  messages_sent          Json?    @default("[]")
+  messages_received      Json?    @default("[]")
+  alternatives_considered Json?   @default("[]")
+  calculations           Json?    @default("{}")
+  decision               String
+  decision_reason        String
+  erp_updates            Json?    @default("[]")
+  escalations            Json?    @default("[]")
+  remaining_risks        Json?    @default("[]")
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("audit_trail")
+  @@schema("simulation")
+}
+
+model SimulationState {
+  id              Int      @id @default(1)
+  simulation_time Int      @default(0)
+  status          String   @default("running")
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("simulation_state")
+  @@schema("simulation")
+}
