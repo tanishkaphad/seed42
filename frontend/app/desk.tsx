@@ -845,54 +845,71 @@ export default function Desk() {
         </section>
 
         <section className={`panel${tab === 'mcp' ? ' is-active' : ''}`}>
-          <div className="section-heading">
+          <div className="section-heading" style={{ marginBottom: 40 }}>
             <div>
               <p className="eyebrow">CURSOR / TOOL BRIDGE</p>
-              <h2>MCP</h2>
-              <p>
-                Model Context Protocol is a socket between Cursor and this simulation. It is not a tab that runs Groq.
-                The desk talks HTTP to Fastify. Cursor talks stdio to <span className="mono">src/mcp/index.ts</span>, which calls the same Neon helpers as the APIs.
+              <h2 style={{ fontSize: 56, marginBottom: 16 }}>Model Context Protocol</h2>
+              <p style={{ maxWidth: 800, fontSize: 16, color: 'var(--ink)' }}>
+                MCP is the socket between Cursor and this simulation. It isn't a tab that runs Groq.
+                The desk talks HTTP to Fastify. Cursor talks stdio to <span className="mono" style={{ background: '#e0e0e0', padding: '2px 6px', borderRadius: 4 }}>src/mcp/index.ts</span>, directly interacting with your Neon database.
               </p>
             </div>
           </div>
-          <div className="risk-strip">
-            <div><strong>stdio</strong><span>Cursor default · npm run mcp:stdio</span></div>
-            <div><strong>:3333</strong><span>HTTP · npm run mcp:http · /mcp</span></div>
-            <div><strong>7</strong><span>Tools · same rules as the desk</span></div>
-          </div>
-          <div className="mcp-flow" aria-label="How MCP works">
-            <div>
-              <b>01</b>
-              <h3>You ask in Cursor</h3>
-              <p>A new agent chat, after seed42-operations is green in Settings → MCP.</p>
+          
+          <div className="risk-strip" style={{ marginBottom: 40, borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ background: 'var(--acid)', padding: '24px 32px' }}>
+              <strong style={{ color: 'var(--ink)' }}>stdio</strong>
+              <span style={{ color: 'var(--ink)', opacity: 0.8 }}>Cursor default · npm run mcp:stdio</span>
             </div>
-            <div>
-              <b>02</b>
-              <h3>Cursor starts the server</h3>
-              <p>node + tsx runs src/mcp/index.ts with cwd at the repo root so .env / DATABASE_URL load.</p>
+            <div style={{ padding: '24px 32px' }}>
+              <strong>:3333</strong>
+              <span>HTTP · npm run mcp:http · /mcp</span>
             </div>
-            <div>
-              <b>03</b>
-              <h3>A tool fires</h3>
-              <p>list_inventory and friends call src/sim/* — not a second database, not the Next Groq routes.</p>
-            </div>
-            <div>
-              <b>04</b>
-              <h3>Neon answers</h3>
-              <p>JSON comes back into the chat. Refresh this desk and the same numbers show in Inventory / Approvals / Sent.</p>
+            <div style={{ padding: '24px 32px' }}>
+              <strong>7</strong>
+              <span>Tools · identical logic to the desk</span>
             </div>
           </div>
-          <p className="lede">Enable it: Cursor Settings → MCP → seed42-operations. Check from a terminal with <span className="mono">npm run mcp:check</span> (expect seven tool names). This browser page cannot turn MCP on; only Cursor can spawn the stdio process.</p>
-          <h3 className="mcp-tools-title">Server config</h3>
-          <p style={{color:'var(--muted)',marginBottom:12,fontSize:12}}>Paste this into <strong>Cursor Settings → MCP → Edit config</strong> (or <span className="mono">~/.cursor/mcp.json</span>). Replace the path with your actual repo root.</p>
-          <McpConfigBlock />
-          <h3 className="mcp-tools-title">Tools</h3>
-          <div className="supplier-cards mcp-tools">
+          
+          <div className="mcp-flow" aria-label="How MCP works" style={{ gap: 16, background: 'transparent', marginBottom: 48 }}>
+            <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, padding: 32, transition: 'transform 0.2s', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+              <b style={{ background: 'var(--green)', color: 'var(--acid)', width: 32, height: 32, borderRadius: '50%', fontSize: 14 }}>01</b>
+              <h3 style={{ marginTop: 24 }}>You ask in Cursor</h3>
+              <p style={{ fontSize: 14 }}>A new agent chat, after seed42-operations is green in Settings → MCP.</p>
+            </div>
+            <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, padding: 32, transition: 'transform 0.2s', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+              <b style={{ background: 'var(--green)', color: 'var(--acid)', width: 32, height: 32, borderRadius: '50%', fontSize: 14 }}>02</b>
+              <h3 style={{ marginTop: 24 }}>Cursor starts the server</h3>
+              <p style={{ fontSize: 14 }}>node + tsx runs src/mcp/index.ts with cwd at the repo root so .env / DATABASE_URL load.</p>
+            </div>
+            <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, padding: 32, transition: 'transform 0.2s', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+              <b style={{ background: 'var(--green)', color: 'var(--acid)', width: 32, height: 32, borderRadius: '50%', fontSize: 14 }}>03</b>
+              <h3 style={{ marginTop: 24 }}>A tool fires</h3>
+              <p style={{ fontSize: 14 }}>list_inventory and friends call src/sim/* — not a second database, not the Next Groq routes.</p>
+            </div>
+            <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, padding: 32, transition: 'transform 0.2s', cursor: 'default' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+              <b style={{ background: 'var(--green)', color: 'var(--acid)', width: 32, height: 32, borderRadius: '50%', fontSize: 14 }}>04</b>
+              <h3 style={{ marginTop: 24 }}>Neon answers</h3>
+              <p style={{ fontSize: 14 }}>JSON comes back into the chat. Refresh this desk and the same numbers show in Inventory / Approvals.</p>
+            </div>
+          </div>
+
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', padding: 40, borderRadius: 8, marginBottom: 48 }}>
+            <h3 className="mcp-tools-title" style={{ marginTop: 0 }}>Server Configuration</h3>
+            <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 24, lineHeight: 1.6, maxWidth: 800 }}>
+              Enable the MCP server in Cursor by going to <strong>Cursor Settings → MCP</strong>. Add a new server, select the command type, and use the configuration below. You can verify it works by running <span className="mono" style={{ background: '#e0e0e0', padding: '2px 6px', borderRadius: 4 }}>npm run mcp:check</span> in your terminal.
+            </p>
+            <McpConfigBlock />
+          </div>
+
+          <h3 className="mcp-tools-title">Available Tools</h3>
+          <p style={{ color: 'var(--muted)', marginBottom: 24 }}>These tools are exposed to Cursor and Claude to directly read and mutate your live database.</p>
+          <div className="supplier-cards mcp-tools" style={{ gap: 16 }}>
             {MCP_TOOLS.map((t, i) => (
-              <article key={t.name} className="supplier-card">
-                <span className="rank">{String(i + 1).padStart(2, '0')}</span>
-                <p>{t.does}</p>
-                <b className="mono">{t.name}</b>
+              <article key={t.name} className="supplier-card" style={{ borderRadius: 8, transition: 'transform 0.2s', border: '1px solid var(--line)' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-4px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+                <span className="rank" style={{ borderRadius: 4 }}>{String(i + 1).padStart(2, '0')}</span>
+                <p style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>{t.does}</p>
+                <b className="mono" style={{ color: 'var(--acid)', fontSize: 14, marginTop: 'auto' }}>{t.name}</b>
               </article>
             ))}
           </div>
