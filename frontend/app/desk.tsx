@@ -500,48 +500,7 @@ export default function Desk() {
             </div>
           </div>
 
-          <div className="home-section">
-            <h2 className="home-h2">Simulation Control Center</h2>
-            <p className="home-desc">Advance time or factory reset the database to test different scenarios.</p>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center', background: 'var(--sheet)', padding: 24, borderRadius: 8, border: '1px solid var(--mute)' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 4 }}>CURRENT STATE</div>
-                <div style={{ fontSize: 24, fontWeight: 500 }}>Day {sim.time.replace('DAY ', '')}</div>
-                <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Live sync active</div>
-              </div>
-              <button className="button" type="button" onClick={() => advanceSim(1)}>Advance +1 Day</button>
-              <button className="button" type="button" onClick={() => advanceSim(7)}>Advance +7 Days</button>
-              <button className="button ghost" type="button" style={{ color: 'var(--bad)', borderColor: 'var(--bad)' }} onClick={resetSim}>Factory Reset</button>
-            </div>
-          </div>
 
-          <div className="home-section" style={{ marginTop: 40 }}>
-            <h2 className="home-h2">Test Webhook Engine</h2>
-            <p className="home-desc">Bypass Make.com and fire an inbound email directly to the agent to test its autonomous reasoning.</p>
-            
-            <form onSubmit={onSimMail} style={{ background: 'var(--sheet)', padding: 24, borderRadius: 8, border: '1px solid var(--mute)', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
-              <label className="field">
-                <span>Supplier Sender</span>
-                <select value={simForm.from} onChange={(e) => setSimForm({ ...simForm, from: e.target.value })}>
-                  <option value="" disabled>Select a supplier...</option>
-                  {suppliers.map(s => <option key={s.supplier_id} value={s.email}>{s.supplier_name} ({s.email})</option>)}
-                </select>
-              </label>
-              <label className="field">
-                <span>Subject</span>
-                <input type="text" value={simForm.subject} onChange={(e) => setSimForm({ ...simForm, subject: e.target.value })} required />
-              </label>
-              <label className="field">
-                <span>Body Content</span>
-                <textarea rows={4} value={simForm.text} onChange={(e) => setSimForm({ ...simForm, text: e.target.value })} required />
-              </label>
-              {formError.simMail && <div className="error-banner">{formError.simMail}</div>}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 12, color: 'var(--muted)' }}>Tip: Mention a specific component!</span>
-                <button type="submit" className="button">Simulate Email</button>
-              </div>
-            </form>
-          </div>
         </section>
 
         <section className={`panel${tab === 'inventory' ? ' is-active' : ''}`}>
@@ -910,6 +869,45 @@ export default function Desk() {
             ))}
           </div>
         </section>
+        {/* Global Persistent Simulator */}
+        <div style={{ marginTop: 60, paddingTop: 40, borderTop: '2px dashed var(--line)' }}>
+          <div className="section-heading" style={{ marginBottom: 24 }}>
+            <div>
+              <p className="eyebrow" style={{ color: 'var(--ink)', background: 'var(--acid)', padding: '4px 8px', display: 'inline-block', borderRadius: 2 }}>GLOBAL SIMULATOR</p>
+              <h2 style={{ fontSize: 32, marginTop: 12, marginBottom: 8 }}>Test Engine</h2>
+              <p style={{ maxWidth: 800 }}>These controls are permanently pinned to the bottom of your desk. Watch your inventory, agents, and approvals instantly react to these simulated events from any tab.</p>
+            </div>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: 32 }}>
+            <div style={{ background: 'var(--panel)', padding: 24, border: '1px solid var(--line)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>Time & State Controls</h3>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 120 }}>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 4 }}>CURRENT STATE</div>
+                  <div style={{ fontSize: 24, fontWeight: 500 }}>Day {sim.time.replace('DAY ', '')}</div>
+                </div>
+                <button className="button" type="button" onClick={() => advanceSim(1)}>+1 Day</button>
+                <button className="button" type="button" onClick={() => advanceSim(7)}>+7 Days</button>
+                <button className="button ghost" type="button" style={{ color: 'var(--bad)', borderColor: 'var(--bad)' }} onClick={resetSim}>Factory Reset</button>
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--panel)', padding: 24, border: '1px solid var(--line)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>Simulate Inbound Email</h3>
+              <form onSubmit={onSimMail} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <select style={{ padding: '8px 12px' }} value={simForm.from} onChange={(e) => setSimForm({ ...simForm, from: e.target.value })}>
+                  <option value="" disabled>Select a supplier...</option>
+                  {suppliers.map(s => <option key={s.supplier_id} value={s.email}>{s.supplier_name} ({s.email})</option>)}
+                </select>
+                <input style={{ padding: '8px 12px' }} type="text" value={simForm.subject} onChange={(e) => setSimForm({ ...simForm, subject: e.target.value })} required />
+                <textarea style={{ padding: '8px 12px', minHeight: 60 }} rows={2} value={simForm.text} onChange={(e) => setSimForm({ ...simForm, text: e.target.value })} required />
+                {formError.simMail && <div style={{ color: 'var(--bad)', fontSize: 12, marginTop: 4 }}>{formError.simMail}</div>}
+                <button type="submit" className="button" style={{ alignSelf: 'flex-start', marginTop: 4 }}>Simulate Email</button>
+              </form>
+            </div>
+          </div>
+        </div>
       </main>
 
       <dialog ref={rfqRef}>
