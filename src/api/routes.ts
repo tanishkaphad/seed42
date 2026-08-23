@@ -15,6 +15,7 @@ import {
   injectDisruption,
   injectSimulationEvent,
   advanceSimulationTime,
+  injectHiddenTest,
 } from '../sim/events.js';
 import { resetSimulation } from '../sim/database.js';
 import { recordAuditTrail, getAuditTrail } from '../audit/trail.js';
@@ -444,6 +445,27 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     } catch (err: any) {
       reply.status(500);
       return { error: 'Failed to check approval', details: err.message };
+    }
+  });
+
+  fastify.post('/simulation/inject-test', async (request, reply) => {
+    const bodySchema = z.object({
+      test_type: z.enum(['erp_mismatch', 'demand_spike', 'expedite_revoked', 'priority_change']),
+      component_id: z.string().min(1),
+    });
+
+    const parsed = bodySchema.safeParse(request.body);
+    if (!parsed.success) {
+      reply.status(400);
+      return { error: 'Invalid test injection payload', issues: parsed.error.issues };
+    }
+
+    try {
+      await injectHiddenTest(parsed.data);
+      return { status: 'success', test_type: parsed.data.test_type, component_id: parsed.data.component_id };
+    } catch (err: any) {
+      reply.status(500);
+      return { error: 'Failed to inject hidden test', details: err.message };
     }
   });
 

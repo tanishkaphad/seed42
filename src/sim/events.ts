@@ -260,3 +260,48 @@ export async function advanceSimulationTime(steps: number = 1): Promise<{
     state: newState,
   };
 }
+
+export async function injectHiddenTest(data: { test_type: string; component_id: string }): Promise<void> {
+  const { test_type, component_id } = data;
+
+  switch (test_type) {
+    case 'erp_mismatch': {
+      // Cuts usable_stock in half to simulate phantom stock
+      await query(
+        `UPDATE simulation.inventory SET usable_stock = current_stock / 2 WHERE component_id = $1`,
+        [component_id]
+      );
+      break;
+    }
+    case 'demand_spike': {
+      // Triples daily_usage
+      await query(
+        `UPDATE simulation.inventory SET daily_usage = daily_usage * 3 WHERE component_id = $1`,
+        [component_id]
+      );
+      break;
+    }
+    case 'expedite_revoked': {
+      // Revokes expedite availability
+      await query(
+        `UPDATE simulation.supplier_components SET expedite_available = FALSE WHERE component_id = $1`,
+        [component_id]
+      );
+      await query(
+        `UPDATE simulation.rfq_quotes SET expedite_available = FALSE WHERE rfq_id IN (SELECT rfq_id FROM simulation.rfqs WHERE component_id = $1)`,
+        [component_id]
+      );
+      break;
+    }
+    case 'priority_change': {
+      // Sets a production order to critical and brings deadline forward by 1 day
+      await query(
+        `UPDATE simulation.production_orders SET priority = 'critical', deadline = CURRENT_TIMESTAMP + INTERVAL '1 day' WHERE component_id = $1`,
+        [component_id]
+      );
+      break;
+    }
+    default:
+      throw new Error(`Unknown test_type: ${test_type}`);
+  }
+}

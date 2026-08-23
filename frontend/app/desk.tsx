@@ -146,9 +146,10 @@ export default function Desk() {
   const [runDetail, setRunDetail] = useState<any | null>(null);
   const [lcBriefs, setLcBriefs] = useState<{ agent: string; brief: string }[]>([]);
   const [lcForRun, setLcForRun] = useState<string | null>(null);
-  const [formError, setFormError] = useState({ rfq: '', contact: '', inbound: '', simMail: '' });
+  const [formError, setFormError] = useState({ rfq: '', contact: '', inbound: '', simMail: '', testInject: '' });
   const [loadError, setLoadError] = useState('');
   const [simForm, setSimForm] = useState({ from: '', subject: 'Delivery Delay', text: 'We regret to inform you that we will be delayed by 2 weeks.' });
+  const [testForm, setTestForm] = useState({ test_type: 'erp_mismatch', component_id: '' });
   const rfqRef = useRef<HTMLDialogElement>(null);
   const contactRef = useRef<HTMLDialogElement>(null);
   const inboundRef = useRef<HTMLDialogElement>(null);
@@ -267,6 +268,24 @@ export default function Desk() {
     } catch (e: any) {
       ping(e.message);
       load();
+    }
+  }
+
+  async function onInjectTest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!testForm.component_id) return;
+    ping('Injecting test...');
+    try {
+      await api('/simulation/inject-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testForm),
+      });
+      ping(`Injected ${testForm.test_type} for ${testForm.component_id}.`);
+      setTestForm({ ...testForm, component_id: '' });
+      load();
+    } catch (err: any) {
+      setFormError({ ...formError, testInject: err.message });
     }
   }
 
@@ -949,6 +968,24 @@ export default function Desk() {
                 <textarea style={{ padding: '8px 12px', minHeight: 60 }} rows={2} value={simForm.text} onChange={(e) => setSimForm({ ...simForm, text: e.target.value })} required />
                 {formError.simMail && <div style={{ color: 'var(--bad)', fontSize: 12, marginTop: 4 }}>{formError.simMail}</div>}
                 <button type="submit" className="button" style={{ alignSelf: 'flex-start', marginTop: 4 }}>Simulate Email</button>
+              </form>
+            </div>
+
+            <div style={{ background: 'var(--panel)', padding: 24, border: '1px solid var(--line)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: 16 }}>Inject Hidden Evaluation Test</h3>
+              <form onSubmit={onInjectTest} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <select style={{ padding: '8px 12px' }} value={testForm.test_type} onChange={(e) => setTestForm({ ...testForm, test_type: e.target.value })}>
+                  <option value="erp_mismatch">ERP Mismatch (Phantom Stock)</option>
+                  <option value="demand_spike">Sudden Demand Spike (3x Usage)</option>
+                  <option value="expedite_revoked">Expedited Shipping Revoked</option>
+                  <option value="priority_change">Critical Priority Bump</option>
+                </select>
+                <select style={{ padding: '8px 12px' }} value={testForm.component_id} onChange={(e) => setTestForm({ ...testForm, component_id: e.target.value })} required>
+                  <option value="" disabled>Select component to disrupt...</option>
+                  {inventory.map(i => <option key={i.component_id} value={i.component_id}>{i.component_id} - {i.component_name}</option>)}
+                </select>
+                {formError.testInject && <div style={{ color: 'var(--bad)', fontSize: 12, marginTop: 4 }}>{formError.testInject}</div>}
+                <button type="submit" className="button" style={{ alignSelf: 'flex-start', marginTop: 4 }}>Trigger Hidden Test</button>
               </form>
             </div>
           </div>
