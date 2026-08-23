@@ -133,7 +133,7 @@ export async function processInboundEmail(raw: unknown) {
       await acceptQuote(erp.quote.quote_id);
       const days = signal.stated_delivery_days || erp.quote.delivery_days || 5;
       const poCreated = await createPurchaseOrder({
-        component_id: erp.quote.component_id,
+        component_id: erp.componentId!,
         supplier_id: erp.supplier.supplier_id,
         quantity: erp.quote.quantity_available,
         unit_price: erp.quote.unit_price,

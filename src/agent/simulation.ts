@@ -20,11 +20,9 @@ export async function loadErpSnapshot(input: {
     (q) =>
       supplier &&
       q.supplier_id === supplier.supplier_id &&
-      !q.accepted &&
-      (!input.componentId || q.component_id === input.componentId) &&
       (!input.rfqId || q.rfq_id === input.rfqId)
   );
-  const componentId = input.componentId || quote?.component_id || po?.component_id || null;
+  const componentId = input.componentId || po?.component_id || null;
   const inventory = componentId ? await getInventoryByComponent(componentId) : null;
   const capability = supplier && componentId ? await getSupplierCapability(supplier.supplier_id, componentId) : null;
   const tracking = po?.po_id ? await getTrackingByPoId(po.po_id) : null;

@@ -70,7 +70,7 @@ export async function ingestGmailPush(raw: any) {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error(`Gmail fetch failed (${res.status})`);
-  const msg = await res.json();
+  const msg = (await res.json()) as any;
   const parsed = decodePart(msg.payload);
   return { gmail: status, result: await processInboundEmail(parsed) };
 }

@@ -77,6 +77,10 @@ export async function processDisruptionFlow(
     signal = {
       affected_po_id: input.po_id || null,
       component_id: input.component_id || null,
+      rfq_id: null,
+      quoted_unit_price: null,
+      stated_delivery_days: null,
+      deal_intent: 'unclear',
       reported_delay_days: input.reported_delay_days ?? null,
       disruption_cause: 'Direct operational alert',
       classification: input.reported_delay_days ? 'delayed-with-date' : 'vague',
