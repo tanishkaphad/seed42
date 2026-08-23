@@ -276,7 +276,7 @@ export default function Desk() {
     if (!testForm.component_id) return;
     ping('Injecting test...');
     try {
-      await api('/sim/inject-test', {
+      await api('/sim/simulation/inject-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(testForm),
