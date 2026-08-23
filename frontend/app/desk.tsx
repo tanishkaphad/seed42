@@ -146,8 +146,9 @@ export default function Desk() {
   const [runDetail, setRunDetail] = useState<any | null>(null);
   const [lcBriefs, setLcBriefs] = useState<{ agent: string; brief: string }[]>([]);
   const [lcForRun, setLcForRun] = useState<string | null>(null);
-  const [formError, setFormError] = useState({ rfq: '', contact: '', inbound: '' });
+  const [formError, setFormError] = useState({ rfq: '', contact: '', inbound: '', simMail: '' });
   const [loadError, setLoadError] = useState('');
+  const [simForm, setSimForm] = useState({ from: '', subject: 'Delivery Delay', text: 'We regret to inform you that we will be delayed by 2 weeks.' });
   const rfqRef = useRef<HTMLDialogElement>(null);
   const contactRef = useRef<HTMLDialogElement>(null);
   const inboundRef = useRef<HTMLDialogElement>(null);
@@ -268,6 +269,51 @@ export default function Desk() {
       load();
     }
   }
+
+  async function advanceSim(steps: number) {
+    try {
+      await api('/sim/simulation/advance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ steps }),
+      });
+      ping(`Advanced simulation by ${steps} days.`);
+      load();
+    } catch (e: any) {
+      ping(`Failed to advance: ${e.message}`);
+    }
+  }
+
+  async function resetSim() {
+    if (!confirm('Are you sure you want to completely reset the simulation? This will wipe all changes.')) return;
+    try {
+      await api('/sim/simulation/reset', { method: 'POST' });
+      ping('Simulation factory reset to golden state.');
+      load();
+    } catch (e: any) {
+      ping(`Failed to reset: ${e.message}`);
+    }
+  }
+
+  async function onSimMail(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!simForm.from) return setFormError((s) => ({ ...s, simMail: 'Please select a supplier.' }));
+    try {
+      setFormError((s) => ({ ...s, simMail: '' }));
+      ping('Sending test webhook to backend...');
+      await api('/sim/webhooks/inbound-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(simForm),
+      });
+      ping('Email ingested successfully! Check Agents tab for logs.');
+      setSimForm({ ...simForm, text: '' });
+      load();
+    } catch (err: any) {
+      setFormError((s) => ({ ...s, simMail: err.message }));
+    }
+  }
+
 
   async function onRfq(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -461,14 +507,46 @@ export default function Desk() {
           </div>
 
           <div className="home-section">
-            <h2 className="home-h2">How the agent loop works</h2>
-            <div className="home-flow">
-              <div><b>1</b><strong>Disruption detected</strong><p>Supplier sends a delay email. The agent ingests it via the Ingest inbound button in Contacts or via Resend webhook.</p></div>
-              <div><b>2</b><strong>Inventory checked</strong><p>Agent reads usable stock, daily burn rate, and days of coverage from Neon to assess how urgent the shortage is.</p></div>
-              <div><b>3</b><strong>Alternatives sourced</strong><p>Agent queries ranked suppliers, compares prices, lead times, and certifications, then selects the best fallback option.</p></div>
-              <div><b>4</b><strong>Human gate</strong><p>If the estimated cost exceeds ₹1,50,000 an approval is created. You approve or reject it in the Approvals tab.</p></div>
-              <div><b>5</b><strong>Email sent</strong><p>After approval the agent dispatches the supplier email. It appears in Sent Emails and the full audit trail is in Agents.</p></div>
+            <h2 className="home-h2">Simulation Control Center</h2>
+            <p className="home-desc">Advance time or factory reset the database to test different scenarios.</p>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', background: 'var(--sheet)', padding: 24, borderRadius: 8, border: '1px solid var(--mute)' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 4 }}>CURRENT STATE</div>
+                <div style={{ fontSize: 24, fontWeight: 500 }}>Day {sim.time.replace('DAY ', '')}</div>
+                <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>Live sync active</div>
+              </div>
+              <button className="button" type="button" onClick={() => advanceSim(1)}>Advance +1 Day</button>
+              <button className="button" type="button" onClick={() => advanceSim(7)}>Advance +7 Days</button>
+              <button className="button ghost" type="button" style={{ color: 'var(--bad)', borderColor: 'var(--bad)' }} onClick={resetSim}>Factory Reset</button>
             </div>
+          </div>
+
+          <div className="home-section" style={{ marginTop: 40 }}>
+            <h2 className="home-h2">Test Webhook Engine</h2>
+            <p className="home-desc">Bypass Make.com and fire an inbound email directly to the agent to test its autonomous reasoning.</p>
+            
+            <form onSubmit={onSimMail} style={{ background: 'var(--sheet)', padding: 24, borderRadius: 8, border: '1px solid var(--mute)', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 600 }}>
+              <label className="field">
+                <span>Supplier Sender</span>
+                <select value={simForm.from} onChange={(e) => setSimForm({ ...simForm, from: e.target.value })}>
+                  <option value="" disabled>Select a supplier...</option>
+                  {suppliers.map(s => <option key={s.supplier_id} value={s.email}>{s.supplier_name} ({s.email})</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span>Subject</span>
+                <input type="text" value={simForm.subject} onChange={(e) => setSimForm({ ...simForm, subject: e.target.value })} required />
+              </label>
+              <label className="field">
+                <span>Body Content</span>
+                <textarea rows={4} value={simForm.text} onChange={(e) => setSimForm({ ...simForm, text: e.target.value })} required />
+              </label>
+              {formError.simMail && <div className="error-banner">{formError.simMail}</div>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>Tip: Mention a specific component!</span>
+                <button type="submit" className="button">Simulate Email</button>
+              </div>
+            </form>
           </div>
         </section>
 
