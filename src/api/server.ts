@@ -1,9 +1,14 @@
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import { apiRoutes } from './routes.js';
-import { randomUUID } from 'node:crypto';
+import crypto, { randomUUID } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createMcpServer } from '../mcp/server.js';
+
+if (!globalThis.crypto) {
+  // @ts-ignore
+  globalThis.crypto = crypto;
+}
 export function buildServer(): FastifyInstance {
   const app = Fastify({
     logger: {
