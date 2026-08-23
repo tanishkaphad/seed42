@@ -38,7 +38,7 @@ const MCP_CONFIGS = {
       mcpServers: {
         'seed42-cloud': {
           command: 'npx',
-          args: ['-y', '@smithery/cli@latest', 'run', '--sse', 'https://seed42-agent-production.up.railway.app/mcp']
+          args: ['-y', 'mcp-remote', 'https://seed42-agent-production.up.railway.app/mcp']
         }
       }
     }, null, 2)
