@@ -4,7 +4,7 @@ import { getInventory, updateStock } from '../sim/inventory.js';
 import { getApprovals, updateApprovalStatus } from '../sim/approval.js';
 import { getSuppliers } from '../sim/suppliers.js';
 import { getAllQuotes } from '../sim/rfq.js';
-import { getSupplierMessages } from '../sim/messaging.js';
+import { getSupplierMessages, sendSupplierMessage } from '../sim/messaging.js';
 
 const result = (data: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] });
 
@@ -23,6 +23,13 @@ export function createMcpServer() {
   server.tool('list_suppliers', 'List active supplier contacts and reliability rankings.', { component_id: z.string().optional() }, async ({ component_id }) => result(await getSuppliers(component_id)));
   server.tool('list_quotations', 'List supplier quotations saved against RFQs.', {}, async () => result(await getAllQuotes()));
   server.tool('list_supplier_messages', 'List inbound or outbound supplier emails.', { direction: z.enum(['inbound', 'outbound']).optional(), supplier_id: z.string().optional(), po_id: z.string().optional() }, async ({ direction, supplier_id, po_id }) => result(await getSupplierMessages(supplier_id, po_id, direction)));
+  
+  server.tool('send_email', 'Send an email to a supplier contact. This will physically send an email via Resend and log it to the database.', {
+    supplier_id: z.string().min(1).describe('The ID of the supplier to email'),
+    po_id: z.string().optional().describe('Optional Purchase Order ID associated with this message'),
+    subject: z.string().min(1).describe('The subject line of the email'),
+    body: z.string().min(1).describe('The plaintext body of the email'),
+  }, async ({ supplier_id, po_id, subject, body }) => result(await sendSupplierMessage({ supplier_id, po_id, subject, body })));
 
   return server;
 }
