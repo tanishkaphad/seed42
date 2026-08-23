@@ -426,12 +426,8 @@ export default function Desk() {
     <>
       <header className="topbar">
         <a className="brand" href="#inventory">
-          <span className="brand-mark">S42</span>
-          <span>
-            SUPPLY
-            <br />
-            CONTROL ROOM
-          </span>
+          {/* ponytail: img tag is simpler than next/image for a tiny nav logo */}
+          <img src="/logo.png" alt="seed42" style={{ height: 44, width: 'auto' }} />
         </a>
         <nav className="topnav" aria-label="Dashboard sections">
           {tabs.map((t) => (
