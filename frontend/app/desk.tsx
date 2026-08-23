@@ -579,7 +579,21 @@ export default function Desk() {
                       )}
                     </td>
                   </tr>
-                )) : <tr><td className="empty" colSpan={7}>No records found.</td></tr>}
+                )) : <tr><td className="empty" colSpan={7}>
+                  <div style={{ padding: '40px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                    <div>No records found.</div>
+                    <button className="button ghost" style={{ border: '1px dashed var(--muted)' }} type="button" onClick={() => {
+                      if (inventory.length === 0 || suppliers.length === 0) {
+                        ping('Need inventory and suppliers to simulate.'); return;
+                      }
+                      const c = inventory.find((x: any) => x.days_of_coverage < 5) || inventory[0];
+                      const s = suppliers[0];
+                      setSimForm({ from: s.email, subject: `Re: Quote for ${c.component_id}`, text: `We can supply ${c.component_name} at 150 each. Delivery in 2 days.` });
+                      ping('Pre-filled Global Simulator at bottom. Click "Simulate Email" to trigger the Agent to draft a PO.');
+                      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    }}>Simulate a PO Request</button>
+                  </div>
+                </td></tr>}
               </tbody>
             </table>
           </div>
@@ -659,7 +673,21 @@ export default function Desk() {
                       )}
                     </td>
                   </tr>
-                )) : <tr><td className="empty" colSpan={9}>No supplier quotations received yet.</td></tr>}
+                )) : <tr><td className="empty" colSpan={9}>
+                  <div style={{ padding: '40px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                    <div>No supplier quotations received yet.</div>
+                    <button className="button ghost" style={{ border: '1px dashed var(--muted)' }} type="button" onClick={() => {
+                      if (inventory.length === 0 || suppliers.length === 0) {
+                        ping('Need inventory and suppliers to simulate.'); return;
+                      }
+                      const c = inventory[0];
+                      const s = suppliers[0];
+                      setSimForm({ from: s.email, subject: `Re: RFQ for ${c.component_id}`, text: `We can provide 500 units of ${c.component_name} for $120. Lead time is 5 days.` });
+                      ping('Pre-filled Global Simulator at bottom. Click "Simulate Email" to trigger the Agent to parse this quote.');
+                      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    }}>Simulate Incoming Quote</button>
+                  </div>
+                </td></tr>}
               </tbody>
             </table>
           </div>
