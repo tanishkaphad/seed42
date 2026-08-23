@@ -452,56 +452,50 @@ export default function Desk() {
           </div>
 
           <div className="home-section">
-            <h2 className="home-h2">Quick Start</h2>
-            <p className="home-desc">Two terminals. That&apos;s all you need.</p>
+            <h2 className="home-h2">Connect your AI (MCP)</h2>
+            <p className="home-desc">Seed42 isn&apos;t just a dashboard—it&apos;s a Model Context Protocol bridge that lets any AI securely read and write to your live ERP database.</p>
             <div className="home-steps">
               <div className="home-step">
                 <span className="home-step-n">01</span>
                 <div>
-                  <strong>Start the backend API</strong>
-                  <p>From the repo root — starts Fastify on port 3002 + connects to Neon DB.</p>
-                  <pre className="home-code">npm run dev</pre>
+                  <strong>Open your AI client</strong>
+                  <p>Open Claude Desktop (or Cursor Settings → MCP).</p>
                 </div>
               </div>
               <div className="home-step">
                 <span className="home-step-n">02</span>
                 <div>
-                  <strong>Start this dashboard</strong>
-                  <p>From the <span className="mono">frontend/</span> folder — starts Next.js on port 3001.</p>
-                  <pre className="home-code">cd frontend{`\n`}npm run dev</pre>
+                  <strong>Add the Seed42 Cloud Server</strong>
+                  <p>Add this exact command as a new MCP server. It connects directly to the live Railway backend.</p>
+                  <pre className="home-code">npx -y mcp-remote https://seed42-agent-production.up.railway.app/mcp</pre>
                 </div>
               </div>
               <div className="home-step">
                 <span className="home-step-n">03</span>
                 <div>
-                  <strong>Open the desk</strong>
-                  <p>Navigate to this page. All tabs pull live data automatically.</p>
-                  <pre className="home-code">http://localhost:3001</pre>
+                  <strong>Prompt the AI</strong>
+                  <p>Type this into the chat and watch the AI autonomously query your inventory!</p>
+                  <pre className="home-code">&quot;Check my Seed42 inventory for any critical shortages.&quot;</pre>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="home-section">
-            <h2 className="home-h2">What each tab does</h2>
-            <p className="home-desc">Click any card to jump straight to that section.</p>
+            <h2 className="home-h2">What the AI can do for you</h2>
+            <p className="home-desc">We expose 7 operational tools to the AI through the MCP socket.</p>
             <div className="home-cards">
               {([
-                { id: 'inventory'  as Tab, icon: '▦',  title: 'Inventory',     color: 'var(--green)', desc: 'Live Excel-style table of every component. Edit stock values directly in the cell — changes write to Neon instantly. Color-coded coverage badges flag critical SKUs (< 3 days) and export to CSV.' },
-                { id: 'approvals'  as Tab, icon: '⏳', title: 'Approvals',     color: 'var(--orange)', desc: 'Human-in-the-loop gate. When the agent wants to place an order above ₹1,50,000 it creates an approval. You Approve or Reject here — the agent only emails the supplier after your go-ahead.' },
-                { id: 'contacts'   as Tab, icon: '◎',  title: 'Contacts',      color: '#5b5fcf', desc: 'Supplier directory ranked by reliability and quality score. Top-3 get highlighted cards. Add new supplier mailboxes here so the agent knows where to send RFQs and shortage alerts.' },
-                { id: 'quotations' as Tab, icon: '📋', title: 'Quotations',    color: '#0891b2', desc: 'Quotes received from suppliers in response to RFQs. Compare unit price, lead time, and certification status side by side. Hit Accept Quote to lock in the deal and trigger an approval.' },
-                { id: 'sent'       as Tab, icon: '✉',  title: 'Sent Emails',   color: '#7c3aed', desc: 'Every email the agent dispatched to a supplier after approval. Click Read on any row to open the full email body in the Inbox tab. Delivery status tracks whether the message was received.' },
-                { id: 'history'    as Tab, icon: '📥', title: 'Inbox',         color: '#b45309', desc: 'Inbound supplier messages received by the system. Select any message to read its full body and the decision trace — what the agent saw, what it decided, and which PO it was linked to.' },
-                { id: 'agents'     as Tab, icon: '⚙',  title: 'Agents',        color: '#374151', desc: 'Shortage crew runs. Hit Run shortage crew to trigger the autonomous agent loop — it checks inventory, finds alternatives, creates approvals, and logs every step. Inspect the audit trail here.' },
-                { id: 'mcp'        as Tab, icon: '⬡',  title: 'MCP',           color: '#1d4ed8', desc: 'Model Context Protocol bridge for Cursor. Paste the server config into Cursor Settings → MCP to give any AI agent in Cursor direct read/write access to this database using the 7 registered tools.' },
-              ] as {id:Tab,icon:string,title:string,color:string,desc:string}[]).map((c) => (
-                <button key={c.id} className="home-card" type="button" onClick={() => setTab(c.id)}>
+                { id: 'inventory', icon: '▦', title: 'Read Inventory', color: 'var(--green)', desc: 'AI can check live stock levels, daily burn rates, and calculate days of coverage.' },
+                { id: 'contacts', icon: '◎', title: 'Find Suppliers', color: '#5b5fcf', desc: 'AI can search for backup suppliers based on component ID and reliability scores.' },
+                { id: 'approvals', icon: '⏳', title: 'Manage Approvals', color: 'var(--orange)', desc: 'AI can draft purchase orders and request human approval for high-value orders.' },
+                { id: 'history', icon: '📥', title: 'Read Emails', color: '#b45309', desc: 'AI can read inbound supplier messages (like delays) directly from the database.' },
+              ] as any[]).map((c) => (
+                <div key={c.id} className="home-card" style={{ cursor: 'default' }}>
                   <span className="home-card-icon" style={{background: c.color}}>{c.icon}</span>
                   <strong>{c.title}</strong>
                   <p>{c.desc}</p>
-                  <span className="home-card-cta">Open →</span>
-                </button>
+                </div>
               ))}
             </div>
           </div>
