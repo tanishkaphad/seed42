@@ -8,6 +8,7 @@ const base: ParsedEmailSignal = {
   rfq_id: null,
   reported_delay_days: null,
   quoted_unit_price: 132,
+  quoted_quantity: null,
   stated_delivery_days: 4,
   deal_intent: 'confirm',
   disruption_cause: 'None',

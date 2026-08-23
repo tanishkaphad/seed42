@@ -215,3 +215,29 @@ export async function acceptQuote(quoteId: string): Promise<any> {
   return res.rows.length > 0 ? res.rows[0] : null;
 }
 
+export async function insertStandaloneQuote(data: {
+  supplier_id: string;
+  component_id: string;
+  unit_price: number;
+  quantity: number;
+  delivery_days: number;
+  rfq_id?: string | null;
+}) {
+  let rfqId = data.rfq_id;
+  if (!rfqId) {
+    rfqId = `RFQ-AUTO-${Date.now().toString().slice(-4)}`;
+    await query(`
+      INSERT INTO simulation.rfqs (rfq_id, component_id, requested_quantity, required_delivery_date, status, created_at)
+      VALUES ($1, $2, $3, CURRENT_DATE + interval '7 days', 'open', CURRENT_TIMESTAMP)
+    `, [rfqId, data.component_id, data.quantity]);
+  }
+  
+  const quoteId = `QT-${Date.now().toString().slice(-4)}${Math.floor(Math.random() * 1000)}`;
+  await query(`
+    INSERT INTO simulation.rfq_quotes (
+      quote_id, rfq_id, supplier_id, quantity_available, unit_price, delivery_days, expedite_available, expedite_fee
+    ) VALUES ($1, $2, $3, $4, $5, $6, false, 0)
+  `, [quoteId, rfqId, data.supplier_id, data.quantity, data.unit_price, data.delivery_days]);
+  
+  return { rfq_id: rfqId, quote_id: quoteId };
+}

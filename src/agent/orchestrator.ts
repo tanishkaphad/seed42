@@ -1,7 +1,8 @@
 import { parseInboundEmailWithGroq } from '../llm/parser.js';
 import { recordInboundMessage, sendSupplierMessage, extractMailbox } from '../sim/messaging.js';
 import { createPurchaseOrder } from '../sim/purchaseOrders.js';
-import { acceptQuote } from '../sim/rfq.js';
+import { acceptQuote, insertStandaloneQuote } from '../sim/rfq.js';
+import { updateStock } from '../sim/inventory.js';
 import { createAgentRun, logAgentEvent, recordPayment } from '../sim/agentStore.js';
 import { loadErpSnapshot } from './simulation.js';
 import { recoverSupplier, collectDealRisks, executeRecoveryPlan } from './supplier.js';
@@ -104,6 +105,32 @@ export async function processInboundEmail(raw: unknown) {
   let paymentStatus = 'none';
   const actions: string[] = [];
   let execution: unknown = null;
+
+  // ponytail: automatically map inbound quote numbers to UI table
+  if (signal.quoted_unit_price && signal.quoted_quantity && erp.componentId && !erp.quote) {
+    const qRes = await insertStandaloneQuote({
+      supplier_id: erp.supplier.supplier_id,
+      component_id: erp.componentId,
+      unit_price: signal.quoted_unit_price,
+      quantity: signal.quoted_quantity,
+      delivery_days: signal.stated_delivery_days || 5,
+      rfq_id: signal.rfq_id
+    });
+    actions.push(`Inserted inbound quotation (${qRes.quote_id})`);
+  }
+
+  // ponytail: automatically map inbound confirmed dispatch directly to inventory
+  if (signal.deal_intent === 'confirm' && signal.quoted_quantity && erp.componentId && erp.inventory) {
+    const newUsable = erp.inventory.usable_stock + signal.quoted_quantity;
+    const newCurrent = erp.inventory.current_stock + signal.quoted_quantity;
+    await updateStock(
+      erp.componentId, 
+      newCurrent, 
+      newUsable, 
+      `Inbound dispatch of ${signal.quoted_quantity} units from ${erp.supplier.supplier_name}`
+    );
+    actions.push(`Updated inventory by ${signal.quoted_quantity} units`);
+  }
 
   if (decision === 'negotiate') {
     await sendSupplierMessage({

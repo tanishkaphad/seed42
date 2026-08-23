@@ -6,6 +6,7 @@ export interface ParsedEmailSignal {
   rfq_id: string | null;
   reported_delay_days: number | null;
   quoted_unit_price: number | null;
+  quoted_quantity: number | null;
   stated_delivery_days: number | null;
   deal_intent: 'confirm' | 'reject' | 'unclear';
   disruption_cause: string;
@@ -23,6 +24,7 @@ You must respond ONLY with a valid JSON object with the following exact keys:
   "affected_po_id": string or null (e.g. "PO-7712" if mentioned),
   "component_id": string or null (e.g. "COMP-104" if mentioned or inferred),
   "reported_delay_days": number or null (e.g. 5 if a 5-day delay is stated, null if on time or unclear),
+  "quoted_quantity": number or null (e.g. 5000 if they offer to supply 5000 units),
   "disruption_cause": string (brief explanation like "Port congestion at Chennai", "Material shortage", "QC hold", or "None"),
   "classification": string (strictly one of: "confirmed", "delayed-with-date", "vague", "contradictory"),
   "summary": string (1-sentence concise description of the supplier's message)
@@ -50,9 +52,12 @@ export async function parseInboundEmailWithGroq(
   const deliveryMatch = text.match(/(?:lead\s*time|deliver(?:y|s)?(?:\s+in)?)\s*[:\s]*(\d+)\s*days?/i);
   const statedDeliveryDays = deliveryMatch ? parseInt(deliveryMatch[1], 10) : null;
 
+  const quantityMatch = text.match(/(?:quantity|qty|supply|provide|have)\s*[:\s]*([\d,]+)/i);
+  const quotedQuantity = quantityMatch ? Number(quantityMatch[1].replaceAll(',', '')) : null;
+
   let dealIntent: 'confirm' | 'reject' | 'unclear' = 'unclear';
   if (/cannot|unable to|reject|decline|no longer/i.test(text)) dealIntent = 'reject';
-  else if (/confirm|agreed|we accept|happy to proceed|order confirmed|we can supply|deal accepted/i.test(text)) {
+  else if (/confirm|agreed|we accept|happy to proceed|order confirmed|we can supply|deal accepted|shipped|dispatched/i.test(text)) {
     dealIntent = 'confirm';
   }
 
@@ -101,6 +106,7 @@ export async function parseInboundEmailWithGroq(
     rfq_id: rfqId,
     reported_delay_days: delayDays,
     quoted_unit_price: quotedUnitPrice,
+    quoted_quantity: quotedQuantity,
     stated_delivery_days: statedDeliveryDays,
     deal_intent: dealIntent,
     disruption_cause: cause,
