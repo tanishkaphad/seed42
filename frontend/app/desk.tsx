@@ -18,44 +18,80 @@ const MCP_TOOLS = [
   { name: 'list_supplier_messages', does: 'List inbound or outbound supplier mail rows.' },
 ];
 
-const MCP_CONFIG = {
-  mcpServers: {
-    'seed42-operations': {
-      command: 'node',
-      args: ['--import', 'tsx/esm', 'src/mcp/index.ts'],
-      cwd: 'C:\\AAYUSH\\5_College\\Projects\\seed42',
-      env: { NODE_OPTIONS: '--no-warnings' },
-    },
+const MCP_CONFIGS = {
+  'cursor-local': {
+    description: 'Paste into Cursor Settings → MCP (or ~/.cursor/mcp.json). Runs locally.',
+    text: JSON.stringify({
+      mcpServers: {
+        'seed42-operations': {
+          command: 'node',
+          args: ['--import', 'tsx/esm', 'src/mcp/index.ts'],
+          cwd: 'C:\\AAYUSH\\5_College\\Projects\\seed42',
+          env: { NODE_OPTIONS: '--no-warnings' },
+        },
+      },
+    }, null, 2)
   },
+  'claude-cloud': {
+    description: 'Paste into %APPDATA%\\Claude\\claude_desktop_config.json. Connects to live Railway cloud.',
+    text: JSON.stringify({
+      mcpServers: {
+        'seed42-cloud': {
+          command: 'npx',
+          args: ['-y', '@smithery/cli@latest', 'run', '--sse', 'https://seed42-agent-production.up.railway.app/mcp']
+        }
+      }
+    }, null, 2)
+  },
+  'browser-inspector': {
+    description: 'Run this in any terminal to test the live cloud agent in your browser.',
+    text: 'npx -y @modelcontextprotocol/inspector https://seed42-agent-production.up.railway.app/mcp'
+  }
 };
 
 function McpConfigBlock() {
   const [copied, setCopied] = useState(false);
-  const text = JSON.stringify(MCP_CONFIG, null, 2);
+  const [client, setClient] = useState<keyof typeof MCP_CONFIGS>('cursor-local');
+  const active = MCP_CONFIGS[client];
+
   return (
-    <div style={{ position: 'relative', marginBottom: 28 }}>
-      <pre style={{
-        background: 'var(--ink)', color: '#d7fa4a', padding: '20px 24px',
-        fontSize: 12, lineHeight: 1.7, overflowX: 'auto', margin: 0,
-        fontFamily: 'var(--mono)',
-      }}>{text}</pre>
-      <button
-        type="button"
-        style={{
-          position: 'absolute', top: 12, right: 12,
-          background: copied ? 'var(--acid)' : 'transparent',
-          border: '1px solid var(--acid)', color: copied ? 'var(--ink)' : 'var(--acid)',
-          padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: 'var(--mono)',
-          transition: '.2s',
-        }}
-        onClick={() => {
-          navigator.clipboard.writeText(text);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1800);
-        }}
-      >
-        {copied ? '✓ copied' : 'copy'}
-      </button>
+    <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
+        <select 
+          value={client} 
+          onChange={e => setClient(e.target.value as keyof typeof MCP_CONFIGS)} 
+          style={{ padding: '6px 10px', fontSize: 13, background: 'var(--sheet)', color: 'var(--ink)', border: '1px solid var(--mute)', cursor: 'pointer' }}
+        >
+          <option value="cursor-local">Cursor / Windsurf (Local)</option>
+          <option value="claude-cloud">Claude Desktop (Cloud)</option>
+          <option value="browser-inspector">Browser Inspector (Cloud)</option>
+        </select>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>{active.description}</span>
+      </div>
+      <div style={{ position: 'relative' }}>
+        <pre style={{
+          background: 'var(--ink)', color: '#d7fa4a', padding: '20px 24px',
+          fontSize: 12, lineHeight: 1.7, overflowX: 'auto', margin: 0,
+          fontFamily: 'var(--mono)',
+        }}>{active.text}</pre>
+        <button
+          type="button"
+          style={{
+            position: 'absolute', top: 12, right: 12,
+            background: copied ? 'var(--acid)' : 'transparent',
+            border: '1px solid var(--acid)', color: copied ? 'var(--ink)' : 'var(--acid)',
+            padding: '4px 10px', fontSize: 10, cursor: 'pointer', fontFamily: 'var(--mono)',
+            transition: '.2s',
+          }}
+          onClick={() => {
+            navigator.clipboard.writeText(active.text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1800);
+          }}
+        >
+          {copied ? '✓ copied' : 'copy'}
+        </button>
+      </div>
     </div>
   );
 }
