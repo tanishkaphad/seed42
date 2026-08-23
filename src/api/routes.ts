@@ -448,7 +448,7 @@ export const apiRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
     }
   });
 
-  fastify.post('/simulation/inject-test', async (request, reply) => {
+  fastify.post('/sim/inject-test', async (request, reply) => {
     const bodySchema = z.object({
       test_type: z.enum(['erp_mismatch', 'demand_spike', 'expedite_revoked', 'priority_change']),
       component_id: z.string().min(1),
