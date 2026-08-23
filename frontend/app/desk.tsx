@@ -271,7 +271,8 @@ export default function Desk() {
 
   async function onRfq(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const f = new FormData(form);
     try {
       await api('/sim/rfq', {
         method: 'POST',
@@ -283,7 +284,7 @@ export default function Desk() {
         }),
       });
       rfqRef.current?.close();
-      e.currentTarget.reset();
+      form.reset();
       ping('RFQ created and supplier quotes requested.');
       load();
     } catch (err: any) {
@@ -293,7 +294,8 @@ export default function Desk() {
 
   async function onContact(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const f = new FormData(form);
     try {
       await api('/sim/suppliers', {
         method: 'POST',
@@ -301,7 +303,7 @@ export default function Desk() {
         body: JSON.stringify({ supplier_name: f.get('supplier_name'), email: f.get('email') }),
       });
       contactRef.current?.close();
-      e.currentTarget.reset();
+      form.reset();
       ping('Contact saved.');
       load();
     } catch (err: any) {
@@ -311,7 +313,8 @@ export default function Desk() {
 
   async function onInbound(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const f = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const f = new FormData(form);
     try {
       const r = await api('/api/agents/inbound', {
         method: 'POST',
@@ -319,7 +322,7 @@ export default function Desk() {
         body: JSON.stringify({ from: f.get('from'), subject: f.get('subject'), text: f.get('text') }),
       });
       inboundRef.current?.close();
-      e.currentTarget.reset();
+      form.reset();
       setLcBriefs(r.briefs || []);
       setLcForRun(r.result?.run_id || null);
       if (r.result?.run_id) setSelectedRun(r.result.run_id);
