@@ -79,7 +79,7 @@ The agent puts production continuity first, then cost discipline. Still, “fast
 
 ## 3. What is the system architecture?
 
-![System Architecture](docs/system-architecture.png)
+![System Architecture](docs/system-architecture.svg)
 
 The architecture is deliberately vertical. It reads like an operations hand-off, not a maze: first establish the facts, then decide whether the line is actually threatened, then spend only with the right authority, and finally leave a record someone can understand later.
 
